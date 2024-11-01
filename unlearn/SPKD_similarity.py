@@ -112,10 +112,13 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             
             similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / b
 
-            hooks.remove()
-            hooks_t.remove()
             features_s.clear()
             features_t.clear()
+            
+            for hook in hooks:
+                hook.remove()
+            for hook in hooks_t:
+                hook.remove()
             
             r = 1
             ce_loss = criterion(output, target)
