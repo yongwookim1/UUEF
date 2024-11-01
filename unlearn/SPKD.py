@@ -105,8 +105,8 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             
             similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
             
-            hook.remove()
-            hook_t.remove()
+            hooks.remove()
+            hooks_t.remove()
             features_s.clear()
             features_t.clear()
 
