@@ -80,6 +80,7 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
+            # extract feature map
             features_s = []
             features_t = []
             
@@ -99,6 +100,7 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             with torch.no_grad():
                 _ = original_model(image)
             
+            # compute similarity matrices
             f_s, f_t = features_s[0], features_t[0]
             b = f_s.size(0)
             f_s_flat = f_s.view(b, -1)
@@ -110,6 +112,7 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             similarity_s = F.normalize(similarity_s, p=2, dim=1)
             similarity_t = F.normalize(similarity_t, p=2, dim=1)
             
+            # compute similarity loss
             similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / (b * b)
 
             features_s.clear()
