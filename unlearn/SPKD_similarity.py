@@ -92,8 +92,8 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             hooks = []
             hooks_t = []
             
-            model.avgpool.register_forward_hook(hook_fn)
-            original_model.avgpool.register_forward_hook(hook_fn_t)
+            hooks.append(model.avgpool.register_forward_hook(hook_fn))
+            hooks_t.append(original_model.avgpool.register_forward_hook(hook_fn_t))
                     
             output = model(image)
             with torch.no_grad():
@@ -110,7 +110,7 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             similarity_s = F.normalize(similarity_s, p=2, dim=1)
             similarity_t = F.normalize(similarity_t, p=2, dim=1)
             
-            similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / b
+            similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / (b * b)
 
             features_s.clear()
             features_t.clear()

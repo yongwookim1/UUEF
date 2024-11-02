@@ -92,8 +92,8 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             hooks = []
             hooks_t = []
             
-            model.avgpool.register_forward_hook(hook_fn)
-            original_model.avgpool.register_forward_hook(hook_fn_t)
+            hooks.append(model.avgpool.register_forward_hook(hook_fn))
+            hooks_t.append(original_model.avgpool.register_forward_hook(hook_fn_t))
                     
             output = model(image)
             with torch.no_grad():

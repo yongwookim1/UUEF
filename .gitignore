@@ -4,9 +4,11 @@
 /result
 **/*.txt
 /txt
+/CKA.pytorch
 cka_office.py
 cka.py
 cka2.py
+cka3.py
 
 # Created by https://www.toptal.com/developers/gitignore/api/git,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=git,python
