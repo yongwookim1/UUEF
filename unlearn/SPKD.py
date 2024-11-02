@@ -100,7 +100,6 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             with torch.no_grad():
                 _ = original_model(image)
             
-            # compute similarity matrices
             f_s, f_t = features_s[0], features_t[0]
             f_s_flat = f_s.view(f_s.size(0), -1)
             f_t_flat = f_t.view(f_t.size(0), -1)
