@@ -8,6 +8,7 @@ from .Wfisher import Wfisher
 from .baseline import GAwithKD
 from .SPKD import SPKD
 from .SPKD_similarity import SPKD_similarity
+from .GA_noise import GA_noise
 from .RL_pro import RL_proximal
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
@@ -63,5 +64,7 @@ def get_unlearn_method(name):
         return SPKD
     elif name == "SPKD_similarity":
         return SPKD_similarity
+    elif name == "GA_noise":
+        return GA_noise
     else:
         raise NotImplementedError(f"Unlearn method {name} not implemented!")

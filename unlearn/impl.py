@@ -116,7 +116,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
             print("one epoch duration:{}".format(time.time() - start_time))
             
             if args.unlearn != 'retrain':   
-                save_dir = f"./result/{args.unlearn}/{args.unlearn_lr}/{epoch}"
+                save_dir = f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}"
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 args.save_dir = save_dir
