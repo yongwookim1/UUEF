@@ -23,7 +23,7 @@ def l1_regularization(model):
 def GAwithKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
-    distill_loader = forget_loader
+    distill_loader = retain_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     
