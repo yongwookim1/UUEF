@@ -74,7 +74,7 @@ def parse_args():
         "--epochs", default=182, type=int, help="number of total epochs to run"
     )
     parser.add_argument("--warmup", default=0, type=int, help="warm up epochs")
-    parser.add_argument("--print_freq", default=50, type=int, help="print frequency")
+    parser.add_argument("--print_freq", default=1000, type=int, help="print frequency")
     parser.add_argument("--decreasing_lr", default="91,136", help="decreasing strategy")
     parser.add_argument(
         "--no-aug",
