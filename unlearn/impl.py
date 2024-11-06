@@ -119,9 +119,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 save_dir = f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}"
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
-                args.save_dir = save_dir
                 state = {"state_dict": model.state_dict()}
-                utils.save_checkpoint(state, False, args.save_dir, args.unlearn)
+                utils.save_checkpoint(state, False, save_dir, args.unlearn)
                 
                 accuracy = {}
                 for name, loader in data_loaders.items():
