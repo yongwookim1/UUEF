@@ -21,6 +21,15 @@ def l1_regularization(model):
 
 @iterative_unlearn
 def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+    # store initial model state at the beginning of unlearning (epoch 0)
+    if not hasattr(SPKD, 'original_model'):
+        SPKD.original_model = copy.deepcopy(model)
+        SPKD.original_model.eval()
+        for param in SPKD.original_model.parameters():
+            param.requires_grad = False
+    
+    original_model = SPKD.original_model
+    
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
     distill_loader = retain_loader
@@ -28,14 +37,9 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     top1 = utils.AverageMeter()
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    # original model
-    original_model = copy.deepcopy(model).to(device)
-
+    
     # switch mode
     model.train()
-    original_model.eval()
-    for param in original_model.parameters():
-        param.requires_grad = False
 
     start = time.time()
     if args.imagenet_arch:
