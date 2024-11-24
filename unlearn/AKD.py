@@ -20,15 +20,15 @@ def l1_regularization(model):
 
 
 @iterative_unlearn
-def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(SPKD_similarity, 'original_model'):
-        SPKD_similarity.original_model = copy.deepcopy(model)
-        SPKD_similarity.original_model.eval()
-        for param in SPKD_similarity.original_model.parameters():
+    if not hasattr(SPKD, 'original_model'):
+        SPKD.original_model = copy.deepcopy(model)
+        SPKD.original_model.eval()
+        for param in SPKD.original_model.parameters():
             param.requires_grad = False
     
-    original_model = SPKD_similarity.original_model
+    original_model = SPKD.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
@@ -37,7 +37,7 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
     top1 = utils.AverageMeter()
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-
+    
     # switch mode
     model.train()
 
@@ -104,21 +104,13 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             with torch.no_grad():
                 _ = original_model(image)
             
-            # compute similarity matrices
             f_s, f_t = features_s[0], features_t[0]
-            b = f_s.size(0)
-            f_s_flat = f_s.view(b, -1)
-            f_t_flat = f_t.view(b, -1)
-            
-            similarity_s = torch.mm(f_s_flat, f_s_flat.t())
-            similarity_t = torch.mm(f_t_flat, f_t_flat.t())
-            
-            similarity_s = F.normalize(similarity_s, p=2, dim=1)
-            similarity_t = F.normalize(similarity_t, p=2, dim=1)
+            f_s_flat = f_s.view(f_s.size(0), -1)
+            f_t_flat = f_t.view(f_t.size(0), -1)
             
             # compute similarity loss
-            similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / (b * b)
-
+            similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
+            
             features_s.clear()
             features_t.clear()
             
@@ -126,10 +118,10 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
                 hook.remove()
             for hook in hooks_t:
                 hook.remove()
-            
-            r = 1
+
             ce_loss = criterion(output, target)
-            loss = (ce_loss + r * similarity_loss) / 2
+            loss = 10 * similarity_loss + 10 * ce_loss
+            # loss = similarity_loss
 
             optimizer.zero_grad()
             loss.backward()
