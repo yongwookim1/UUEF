@@ -13,15 +13,15 @@ from imagenet import get_x_y_from_data_dict
 
 
 @iterative_unlearn
-def SPKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(SPKD_IL, 'original_model'):
-        SPKD_IL.original_model = copy.deepcopy(model)
-        SPKD_IL.original_model.eval()
-        for param in SPKD_IL.original_model.parameters():
+    if not hasattr(AKD_IL, 'original_model'):
+        AKD_IL.original_model = copy.deepcopy(model)
+        AKD_IL.original_model.eval()
+        for param in AKD_IL.original_model.parameters():
             param.requires_grad = False
     
-    original_model = SPKD_IL.original_model
+    original_model = AKD_IL.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]

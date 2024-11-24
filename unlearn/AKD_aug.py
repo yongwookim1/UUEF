@@ -27,14 +27,14 @@ def apply_crop_resize(img, min_ratio=0.5, max_ratio=0.5, size=224):
 
 
 @iterative_unlearn
-def SPKD_aug(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
-    if not hasattr(SPKD_aug, 'original_model'):
-        SPKD_aug.original_model = copy.deepcopy(model)
-        SPKD_aug.original_model.eval()
-        for param in SPKD_aug.original_model.parameters():
+def AKD_aug(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+    if not hasattr(AKD_aug, 'original_model'):
+        AKD_aug.original_model = copy.deepcopy(model)
+        AKD_aug.original_model.eval()
+        for param in AKD_aug.original_model.parameters():
             param.requires_grad = False
     
-    original_model = SPKD_aug.original_model
+    original_model = AKD_aug.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]

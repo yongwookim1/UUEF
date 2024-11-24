@@ -20,15 +20,15 @@ def l1_regularization(model):
 
 
 @iterative_unlearn
-def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(SPKD, 'original_model'):
-        SPKD.original_model = copy.deepcopy(model)
-        SPKD.original_model.eval()
-        for param in SPKD.original_model.parameters():
+    if not hasattr(AKD, 'original_model'):
+        AKD.original_model = copy.deepcopy(model)
+        AKD.original_model.eval()
+        for param in AKD.original_model.parameters():
             param.requires_grad = False
     
-    original_model = SPKD.original_model
+    original_model = AKD.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
