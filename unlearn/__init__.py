@@ -7,8 +7,18 @@ from .impl import load_unlearn_checkpoint, save_unlearn_checkpoint
 from .Wfisher import Wfisher
 from .baseline import GAwithKD
 from .SPKD import SPKD
-from .SPKD_similarity import SPKD_similarity
+from .AKD import AKD
+from .AKD_aug import AKD_aug
+from .AKD_IL import AKD_IL
+from .RKD import RKD
+from .RKD_IL import RKD_IL
 from .GA_noise import GA_noise
+from .GA_pp import GA_pp
+from .GA_mmd import GA_mmd
+from .CU import CU 
+from .PCU import PCU
+from .PCU_forget import PCU_forget
+from .PL_AD import PL_AD
 from .RL_pro import RL_proximal
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
@@ -60,11 +70,33 @@ def get_unlearn_method(name):
         return RL_proximal
     elif name == "GAwithKD":
         return GAwithKD
+    elif name == "GAwithKD_aug":
+        return GAwithKD_aug
     elif name == "SPKD":
         return SPKD
-    elif name == "SPKD_similarity":
-        return SPKD_similarity
+    elif name == "AKD":
+        return AKD
+    elif name == "AKD_aug":
+        return AKD_aug
+    elif name == "AKD_IL":
+        return AKD_IL
+    elif name == "RKD":
+        return RKD
+    elif name == "RKD_IL":
+        return RKD_IL
     elif name == "GA_noise":
         return GA_noise
+    elif name == "GA_pp":
+        return GA_pp
+    elif name == "GA_mmd":
+        return GA_mmd
+    elif name == "CU":
+        return CU
+    elif name == "PCU":
+        return PCU
+    elif name == "PCU_forget":
+        return PCU_forget
+    elif name == "PL_AD":
+        return PL_AD
     else:
         raise NotImplementedError(f"Unlearn method {name} not implemented!")

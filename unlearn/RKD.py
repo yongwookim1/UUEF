@@ -3,6 +3,7 @@ import time
 import copy
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import utils
 
@@ -12,23 +13,62 @@ sys.path.append(".")
 from imagenet import get_x_y_from_data_dict
 
 
-def l1_regularization(model):
-    params_vec = []
-    for param in model.parameters():
-        params_vec.append(param.view(-1))
-    return torch.linalg.norm(torch.cat(params_vec), ord=1)
+def pdist(e, squared=False, eps=1e-12):
+    e_square = e.pow(2).sum(dim=1)
+    prod = e @ e.t()
+    res = (e_square.unsqueeze(1) + e_square.unsqueeze(0) - 2 * prod).clamp(min=eps)
+
+    if not squared:
+        res = res.sqrt()
+
+    res = res.clone()
+    res[range(len(e)), range(len(e))] = 0
+    return res
+
+
+class RKdAngle(nn.Module):
+    def forward(self, student, teacher):
+        # N x C
+        # N x N x C
+
+        with torch.no_grad():
+            td = (teacher.unsqueeze(0) - teacher.unsqueeze(1))
+            norm_td = F.normalize(td, p=2, dim=2)
+            t_angle = torch.bmm(norm_td, norm_td.transpose(1, 2)).view(-1)
+
+        sd = (student.unsqueeze(0) - student.unsqueeze(1))
+        norm_sd = F.normalize(sd, p=2, dim=2)
+        s_angle = torch.bmm(norm_sd, norm_sd.transpose(1, 2)).view(-1)
+
+        loss = F.smooth_l1_loss(s_angle, t_angle, reduction='mean')
+        return loss
+
+
+class RkdDistance(nn.Module):
+    def forward(self, student, teacher):
+        with torch.no_grad():
+            t_d = pdist(teacher, squared=False)
+            mean_td = t_d[t_d>0].mean()
+            t_d = t_d / mean_td
+
+        d = pdist(student, squared=False)
+        mean_d = d[d>0].mean()
+        d = d / mean_d
+
+        loss = F.smooth_l1_loss(d, t_d, reduction='mean')
+        return loss
 
 
 @iterative_unlearn
-def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(SPKD_similarity, 'original_model'):
-        SPKD_similarity.original_model = copy.deepcopy(model)
-        SPKD_similarity.original_model.eval()
-        for param in SPKD_similarity.original_model.parameters():
+    if not hasattr(RKD, 'original_model'):
+        RKD.original_model = copy.deepcopy(model)
+        RKD.original_model.eval()
+        for param in RKD.original_model.parameters():
             param.requires_grad = False
     
-    original_model = SPKD_similarity.original_model
+    original_model = RKD.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
@@ -37,20 +77,16 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
     top1 = utils.AverageMeter()
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-
+    
     # switch mode
     model.train()
 
     start = time.time()
     if args.imagenet_arch:
         # unlearning phase
-        print("Unlearning phase")
+        print("unlearning phase")
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(forget_loader), args=args
-                )
 
             # compute output
             output_clean = model(image)
@@ -79,24 +115,25 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
                     )
                 )
                 start = time.time()
-        # restore phase
-        print("Restore phase")
+
+        # restore phase with RKD
+        print("restore phase")
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
-            # extract feature map
             features_s = []
             features_t = []
             
             def hook_fn(module, input, output):
                 features_s.append(output)
-                
+            
             def hook_fn_t(module, input, output):
                 features_t.append(output)
             
             hooks = []
             hooks_t = []
             
+            # register hooks for feature extraction
             hooks.append(model.avgpool.register_forward_hook(hook_fn))
             hooks_t.append(original_model.avgpool.register_forward_hook(hook_fn_t))
                     
@@ -104,32 +141,31 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
             with torch.no_grad():
                 _ = original_model(image)
             
-            # compute similarity matrices
             f_s, f_t = features_s[0], features_t[0]
-            b = f_s.size(0)
-            f_s_flat = f_s.view(b, -1)
-            f_t_flat = f_t.view(b, -1)
+            f_s_flat = f_s.view(f_s.size(0), -1)
+            f_t_flat = f_t.view(f_t.size(0), -1)
             
-            similarity_s = torch.mm(f_s_flat, f_s_flat.t())
-            similarity_t = torch.mm(f_t_flat, f_t_flat.t())
+            # normalize feature vectors
+            f_s_norm = F.normalize(f_s_flat, p=2, dim=1)
+            f_t_norm = F.normalize(f_t_flat, p=2, dim=1)
             
-            similarity_s = F.normalize(similarity_s, p=2, dim=1)
-            similarity_t = F.normalize(similarity_t, p=2, dim=1)
+            # compute RKD losses using normalized features
+            dist_criterion = RkdDistance()
+            angle_criterion = RKdAngle()
+            distance_loss = dist_criterion(f_s_norm, f_t_norm)
+            angle_loss = angle_criterion(f_s_norm, f_t_norm)
             
-            # compute similarity loss
-            similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / (b * b)
-
+            # clear feature lists and remove hooks
             features_s.clear()
             features_t.clear()
-            
             for hook in hooks:
                 hook.remove()
             for hook in hooks_t:
                 hook.remove()
-            
-            r = 1
+
             ce_loss = criterion(output, target)
-            loss = (ce_loss + r * similarity_loss) / 2
+            # combine losses with weights
+            loss = 10 * distance_loss + 10 * angle_loss + 10 * ce_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -150,43 +186,6 @@ def SPKD_similarity(data_loaders, model, criterion, optimizer, epoch, args, mask
                     "Accuracy {top1.val:.3f} ({top1.avg:.3f})\t"
                     "Time {3:.2f}".format(
                         epoch, i, len(distill_loader), end - start, loss=losses, top1=top1
-                    )
-                )
-                start = time.time()
-    else:
-        for i, (image, target) in enumerate(forget_loader):
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(forget_loader), args=args
-                )
-
-            image = image.to(device)
-            target = target.to(device)
-
-            # compute output
-            output_clean = model(image)
-            loss = -criterion(output_clean, target)
-
-            optimizer.zero_grad()
-            loss.backward()
-
-            optimizer.step()
-
-            output = output_clean.float()
-            loss = loss.float()
-            prec1 = utils.accuracy(output.data, target)[0]
-
-            losses.update(loss.item(), image.size(0))
-            top1.update(prec1.item(), image.size(0))
-
-            if (i + 1) % args.print_freq == 0:
-                end = time.time()
-                print(
-                    "Epoch: [{0}][{1}/{2}]\t"
-                    "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                    "Accuracy {top1.val:.3f} ({top1.avg:.3f})\t"
-                    "Time {3:.2f}".format(
-                        epoch, i, len(forget_loader), end - start, loss=losses, top1=top1
                     )
                 )
                 start = time.time()

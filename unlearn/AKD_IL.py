@@ -40,10 +40,6 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
         for i, (forget_data, retain_data) in enumerate(zip(forget_loader, distill_loader)):
             # process forget data
             forget_image, forget_target = get_x_y_from_data_dict(forget_data, device)
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(forget_loader), args=args
-                )
 
             # process retain data
             retain_image, retain_target = get_x_y_from_data_dict(retain_data, device)
@@ -84,7 +80,6 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             retain_loss = criterion(retain_output, retain_target)
             similarity_loss = similarity_loss
             
-            total_loss = 0.5 * forget_loss + 0.5 * similarity_loss
             total_loss = 1 * forget_loss + 10 * retain_loss + 10 * similarity_loss
 
             # update model
