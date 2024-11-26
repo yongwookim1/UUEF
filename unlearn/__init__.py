@@ -7,6 +7,7 @@ from .impl import load_unlearn_checkpoint, save_unlearn_checkpoint
 from .Wfisher import Wfisher
 from .baseline import GAwithKD
 from .SPKD import SPKD
+from .SPKD_IL import SPKD_IL
 from .AKD import AKD
 from .AKD_aug import AKD_aug
 from .AKD_IL import AKD_IL
@@ -18,7 +19,7 @@ from .GA_mmd import GA_mmd
 from .CU import CU 
 from .PCU import PCU
 from .PCU_forget import PCU_forget
-from .PL_AD import PL_AD
+from .PL_AKD import PL_AKD
 from .RL_pro import RL_proximal
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
@@ -74,6 +75,8 @@ def get_unlearn_method(name):
         return GAwithKD_aug
     elif name == "SPKD":
         return SPKD
+    elif name == "SPKD_IL":
+        return SPKD_IL
     elif name == "AKD":
         return AKD
     elif name == "AKD_aug":
@@ -96,7 +99,7 @@ def get_unlearn_method(name):
         return PCU
     elif name == "PCU_forget":
         return PCU_forget
-    elif name == "PL_AD":
-        return PL_AD
+    elif name == "PL_AKD":
+        return PL_AKD
     else:
         raise NotImplementedError(f"Unlearn method {name} not implemented!")
