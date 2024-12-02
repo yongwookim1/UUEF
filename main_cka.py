@@ -11,6 +11,7 @@ import arg_parser
 import utils
 from CKA.CKA import CudaCKA
 
+
 def replace_loader_dataset(dataset, batch_size, seed=1, shuffle=False):
     utils.setup_seed(seed)
     return torch.utils.data.DataLoader(
@@ -20,6 +21,7 @@ def replace_loader_dataset(dataset, batch_size, seed=1, shuffle=False):
         pin_memory=True,
         shuffle=False,
     )
+
 
 def load_model(pretrained_model_path, device):
     print(f"\nLoading model: {pretrained_model_path}")
@@ -35,11 +37,14 @@ def load_model(pretrained_model_path, device):
     print(f"Model loading complete: {pretrained_model_path}")
     return model
 
+
 def hook_fn_o(module, input, output):
     features_o.append(output)
 
+
 def hook_fn_r(module, input, output):
     features_r.append(output)
+
 
 def main():
     data = "retain"
@@ -63,8 +68,8 @@ def main():
     )
     
     pretrained_model_paths = [
-        "/home/kyw1654/unlearning/baseline/pretrained_model/0model_SA_best159.pth.tar",
-        "/home/kyw1654/unlearning/baseline/pretrained_model/retraincheckpoint100.pth.tar",
+        "./pretrained_model/0model_SA_best159.pth.tar",
+        "./pretrained_model/retraincheckpoint100.pth.tar",
     ]
     
     data_loader = unlearn_data_loaders[data]
@@ -114,6 +119,7 @@ def main():
     print(f"Kernel CKA: {kernel_cka / len(data_loader):.4f}")
     print(f"Linear CKA check: {linear_check / len(data_loader):.4f}")
     print(f"Kernel CKA check: {kernel_check / len(data_loader):.4f}")
+
 
 if __name__ == "__main__":
     main()
