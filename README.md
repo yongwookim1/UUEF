@@ -103,7 +103,7 @@ python main_cka.py --dataset imagenet --arch resnet50 --imagenet_arch --batch_si
 
 Our source code is modified and adapted on these great repositories:
 
-[SalUn: Empowering Machine Unlearning via Gradient-based Weight Saliency in Both Image Classification and Generation](https://github.com/OPTML-Group/Unlearn-Saliency)
+- [SalUn: Empowering Machine Unlearning via Gradient-based Weight Saliency in Both Image Classification and Generation](https://github.com/OPTML-Group/Unlearn-Saliency)
 
 ## Citation
 
