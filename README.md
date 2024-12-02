@@ -54,12 +54,12 @@ A simple example for ResNet-50 on ImageNet.
 python main_train.py --dataset imagenet --arch resnet50 --imagenet_arch --save_dir ./result --lr 0.1 --epochs 182
 ```
 
-2. Generate Saliency Map (If you want to use SalUn)
+2. Generate saliency map (If you want to use SalUn).
 ```bash
 python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original model path} --class_to_replace ${classes to forget} --unlearn_epochs 1
 ```
 
-3. Unlearn
+3. Unlearn the original model.
 * Our method
 ```bash
 python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn SPKD --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
