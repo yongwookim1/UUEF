@@ -94,7 +94,7 @@ python main_random.py --unlearn RL --unlearn_epochs ${epochs for unlearning} --u
 
 ## Evaluation
 
-Evaluate unlearned model using CKA(Centered Kernel Alignment)
+Evaluate unlearned model using CKA(Centered Kernel Alignment).
 ```bash
 python main_cka.py --dataset imagenet --arch resnet50 --imagenet_arch --batch_size 1024
 ```
