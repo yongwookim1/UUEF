@@ -65,7 +65,7 @@ python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original 
 python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn SPKD --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
 ```
 
-A simple example for unlearning ResNet-50 on ImageNet using SPKD.
+A simple example for unlearning ResNet-50 on ImageNet using GA_SPKD.
 ```bash
 python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ./result/ --model_path ${original model path} --unlearn SPKD --unlearn_epochs 15 --unlearn_lr 1e-5 --batch_size 128
 ```
