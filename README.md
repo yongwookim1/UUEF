@@ -9,6 +9,8 @@ Official PyTorch implementation of Rethinking Unlearning for Transfer Learning.
 - [Requirements](#requirements)
 - [Datasets Preparation](#datasets-preparation)
 - [Training and Unlearning](#training-and-unlearning)
+- [Evaluation](#evaluation)
+- [Acknowledgements](#acknowledgements)
 - [Citation](#citation)
 - [License](#license)
 - [Contact](#contact)
@@ -96,6 +98,12 @@ Evaluate unlearned model using CKA(Centered Kernel Alignment)
 ```bash
 python main_cka.py --dataset imagenet --arch resnet50 --imagenet_arch --batch_size 1024
 ```
+
+## Acknowledgements
+
+Our source code is modified and adapted on these great repositories:
+
+[SalUn: Empowering Machine Unlearning via Gradient-based Weight Saliency in Both Image Classification and Generation](https://github.com/OPTML-Group/Unlearn-Saliency)
 
 ## Citation
 
