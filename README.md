@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 ## Datasets Preparation
 
-All datasets used in our experiments are publicly available. Please refer to the [`DATA.md`](DATA.md) file for detailed instructions on how to set up each dataset.
+All datasets used in our experiments are publicly available.
 
 ## Training and Unlearning
 
