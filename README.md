@@ -54,7 +54,7 @@ A simple example for ResNet-50 on ImageNet.
 python main_train.py --dataset imagenet --arch resnet50 --imagenet_arch --save_dir ./result --lr 0.1 --epochs 182
 ```
 
-2. Generate Saliency Map
+2. Generate Saliency Map (If you want to use SalUn)
 ```bash
 python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original model path} --class_to_replace ${classes to forget} --unlearn_epochs 1
 ```
