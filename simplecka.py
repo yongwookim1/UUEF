@@ -9,7 +9,7 @@ import random
 
 import arg_parser
 import utils
-from CKA import CudaCKA
+from CKA.CKA import CudaCKA
 
 def replace_loader_dataset(dataset, batch_size, seed=1, shuffle=False):
     utils.setup_seed(seed)
