@@ -76,6 +76,11 @@ python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --im
 python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ./result/ --model_path ${original model path} --unlearn AKD --unlearn_epochs 15 --unlearn_lr 1e-5 --batch_size 128
 ```
 
+* GA with Knowledge Distillation
+```bash
+python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn GAwithKD --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
+```
+
 * Retrain
 ```bash
 python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn retrain --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
