@@ -108,7 +108,7 @@ python main_random.py --unlearn RL --unlearn_epochs ${epochs for unlearning} --u
 
 ## Evaluation
 
-Evaluate unlearned model using CKA(Centered Kernel Alignment).
+Evaluate unlearned model using CKA(Centered Kernel Alignment) on Office-Home dataset. You can set your dataset path and model path in line 22 and 23 in 'main_cka.py' file.
 ```bash
 python main_cka.py --dataset imagenet --arch resnet50 --imagenet_arch --batch_size 1024
 ```
