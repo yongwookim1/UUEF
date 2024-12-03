@@ -38,7 +38,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, mask=None, l1=
     start = time.time()
     if args.imagenet_arch:
         device = (
-            torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+            torch.device(f"cuda:{args.gpu}")
+            if torch.cuda.is_available()
+            else torch.device("cpu")
         )
         for i, data in enumerate(train_loader):
             image, target = get_x_y_from_data_dict(data, device)
