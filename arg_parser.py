@@ -64,6 +64,8 @@ def parse_args():
         type=str,
     )
     parser.add_argument("--model_path", type=str, default=None, help="the path of original model")
+    parser.add_argument("--use_wandb", action="store_true", help="use weights and biases")
+    parser.add_argument("--wandb_name", type=str, default=None, help="name of wandb")
 
     ##################################### Training setting #################################################
     parser.add_argument("--batch_size", type=int, default=256, help="batch size")

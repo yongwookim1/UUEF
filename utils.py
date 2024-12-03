@@ -19,6 +19,7 @@ from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
 from torchvision import transforms
+import wandb
 
 __all__ = [
     "setup_model_dataset",
@@ -28,6 +29,21 @@ __all__ = [
     "setup_seed",
     "accuracy",
 ]
+
+
+def init_wandb(args, project_name="unlearning"):
+    """initialize wandb configuration"""
+    run_name = f"{args.wandb_name}"
+    
+    # initialize wandb
+    wandb.init(
+        project=project_name,
+        name=run_name,
+        config=vars(args),
+        dir=os.path.join(args.save_dir),
+    )
+    
+    return wandb.run
 
 
 def warmup_lr(epoch, step, optimizer, one_epoch_step, args):

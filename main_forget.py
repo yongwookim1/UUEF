@@ -14,6 +14,10 @@ from trainer import validate
 
 def main():
     args = arg_parser.parse_args()
+    
+    # initialize wandb if enabled
+    if args.use_wandb:
+        run = utils.init_wandb(args)
 
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -155,6 +159,8 @@ def main():
         unlearn_method = unlearn.get_unlearn_method(args.unlearn)
         unlearn_method(unlearn_data_loaders, model, criterion, args)
         unlearn.save_unlearn_checkpoint(model, None, args)
+    
+    wandb.finish()
 
     # if evaluation_result is None:
     #     evaluation_result = {}

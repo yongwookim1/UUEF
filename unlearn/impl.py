@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import utils
 from trainer.val import validate
-
+import wandb
 
 
 def plot_training_curve(training_result, save_dir, prefix):
@@ -128,6 +128,13 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     val_acc = validate(loader, model, criterion, args)
                     accuracy[name] = val_acc
                     print(f"{name} acc: {val_acc}")
+                    
+                if args.use_wandb:
+                    wandb.log({
+                        "epoch": epoch,
+                        "retain_acc": accuracy["retain"],
+                        "forget_acc": accuracy["forget"],
+                    })
                     
                 print(f"Saved results in {save_dir}")
                 print("one epoch duration:{}".format(time.time() - start_time))
