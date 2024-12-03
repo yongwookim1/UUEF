@@ -232,34 +232,26 @@ def setup_model_dataset(args):
         train_ys = torch.load(args.train_y_file)
         val_ys = torch.load(args.val_y_file)
         model = model_dict[args.arch](num_classes=classes, imagenet=True)
-        model.normalize = normalization
         
-        if args.class_to_replace is None and args.num_indexes_to_replace is None:
-            loaders = prepare_data(
-                dataset="imagenet",
-                batch_size=args.batch_size,
-                train_subset_indices=None
-            )
-            return model, loaders["train"], loaders["val"]
+        model.normalize = normalization
             
         train_subset_indices = torch.ones_like(train_ys)
-        if args.class_to_replace is None:
-            if args.num_indexes_to_replace is not None:
-                total_samples = len(train_ys)
-                num_to_replace = min(args.num_indexes_to_replace, total_samples)
-                replace_indices = torch.randperm(total_samples)[:num_to_replace]
-                train_subset_indices[replace_indices] = 0
-        else:
+        
+        # when train the model
+        if args.class_to_replace is None and args.num_indexes_to_replace is None:
+            train_subset_indices = None
+            
+        elif args.num_indexes_to_replace:
+            total_samples = len(train_ys)
+            num_to_replace = min(args.num_indexes_to_replace, total_samples)
+            replace_indices = torch.randperm(total_samples)[:num_to_replace]
+            train_subset_indices[replace_indices] = 0
+            
+        elif args.class_to_replace:
             for class_id in args.class_to_replace:
                 class_id = int(class_id)
                 train_class_indices = (train_ys == class_id).nonzero().squeeze()
-                
-                if args.num_indexes_to_replace is not None:
-                    num_to_replace = min(args.num_indexes_to_replace, len(train_class_indices))
-                    replace_indices = torch.randperm(len(train_class_indices))[:num_to_replace]
-                    train_subset_indices[train_class_indices[replace_indices]] = 0
-                else:
-                    train_subset_indices[train_class_indices] = 0
+                train_subset_indices[train_class_indices] = 0
 
         loaders = prepare_data(
             dataset="imagenet",
@@ -267,9 +259,14 @@ def setup_model_dataset(args):
             train_subset_indices=train_subset_indices,
         )
         retain_loader = loaders["train"]
-        forget_loader = loaders["fog"]
         val_loader = loaders["val"]
-        return model, retain_loader, forget_loader, val_loader
+        if train_subset_indices is None:
+            forget_loader = None
+            return model, retain_loader, val_loader
+        else:
+            forget_loader = loaders["fog"]
+            return model, retain_loader, forget_loader, val_loader
+        
 
     elif args.dataset == "cifar100_no_val":
         classes = 100
