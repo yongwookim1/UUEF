@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim
 import torch.utils.data
+import wandb
 import unlearn
 import utils
 from trainer import validate
