@@ -273,6 +273,7 @@ def setup_model_dataset(args):
             dataset="imagenet",
             batch_size=args.batch_size,
             train_subset_indices=train_subset_indices,
+            args=args,
         )
         retain_loader = loaders["train"]
         val_loader = loaders["val"]

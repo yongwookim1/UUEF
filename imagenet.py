@@ -19,6 +19,7 @@ def prepare_data(
     train_subset_indices=None,
     val_subset_indices=None,
     data_path="/home/dataset/imagenet1k/data",
+    args=None,
 ):
     if dataset == "imagenet":
         train_dir = os.path.join(data_path, "train")
@@ -30,6 +31,13 @@ def prepare_data(
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
         ])
+        
+        if args.original_Df:
+            train_transform = transforms.Compose([
+                transforms.Lambda(lambda x: x.convert("RGB")),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+            ])
 
         val_transform = transforms.Compose([
             transforms.Lambda(lambda x: x.convert("RGB")),
