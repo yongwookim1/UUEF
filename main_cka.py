@@ -11,25 +11,18 @@ import arg_parser
 import utils
 from CKA.CKA import CudaCKA
 
-# configuration
-args = arg_parser.parse_args()
-utils.setup_seed(2)
-device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-data_dir = '/home/dataset/OfficeHomeDataset_10072016/Real World' # set your dataset path
-
-# model paths
-pretrained_model_paths = [
-    "./pretrained_model/0model_SA_best159.pth.tar", # set your model path
-    "./pretrained_model/retraincheckpoint100.pth.tar",
-]
-
 
 class OfficeHomeDataset(Dataset):
     def __init__(self, image_folder, transform=None):
         self.image_folder = image_folder
-        self.transform = transform
         self.images = []
         self.labels = []
+        self.transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
 
         self.classes = sorted(os.listdir(image_folder))
         for label, cls in enumerate(self.classes):
@@ -80,15 +73,19 @@ class FeatureExtractor:
 
 
 def main():
-    # data setup
-    data_transforms = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    # configuration
+    args = arg_parser.parse_args()
+    utils.setup_seed(2)
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    data_dir = '/home/dataset/OfficeHomeDataset_10072016/Real World' # set your dataset path
 
-    full_dataset = OfficeHomeDataset(data_dir, transform=data_transforms)
+    # model paths
+    pretrained_model_paths = [
+        "./pretrained_model/0model_SA_best159.pth.tar", # set your model path
+        "./pretrained_model/retraincheckpoint100.pth.tar",
+    ]
+
+    full_dataset = OfficeHomeDataset(data_dir)
     data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
 
     # model setup
