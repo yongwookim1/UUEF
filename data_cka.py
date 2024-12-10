@@ -9,6 +9,7 @@ import random
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 import math
+import matplotlib.pyplot as plt
 
 import arg_parser
 import utils
@@ -42,12 +43,28 @@ def rand_bbox(img_shape, lam):
     W = img_shape[2]
     H = img_shape[3]
     
+    # ensure lam is between 0 and 1
+    lam = np.clip(lam, 0.0, 1.0)
+    
     cut_rat = np.sqrt(1. - lam)
     cut_w = int(W * cut_rat)
     cut_h = int(H * cut_rat)
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
     
+    # ensure minimum size of 1
+    cut_w = max(1, min(cut_w, W-1))
+    cut_h = max(1, min(cut_h, H-1))
+    
+    # adjust bounds to ensure valid random selection
+    x_min = max(0, cut_w // 2)
+    x_max = max(x_min + 1, W - cut_w // 2)
+    y_min = max(0, cut_h // 2)
+    y_max = max(y_min + 1, H - cut_h // 2)
+    
+    # generate random center position
+    cx = np.random.randint(x_min, x_max)
+    cy = np.random.randint(y_min, y_max)
+    
+    # calculate box coordinates with clipping
     bbx1 = np.clip(cx - cut_w // 2, 0, W)
     bby1 = np.clip(cy - cut_h // 2, 0, H)
     bbx2 = np.clip(cx + cut_w // 2, 0, W)
@@ -63,27 +80,27 @@ def add_gaussian_noise(img, sigma):
 
 
 def mix_forget_retain(forget_img, retain_img, ratio=0.5, mode='mixup'):
-    """random crop and resize augmentation with configurable ratios"""
+    """Mix forget and retain images using mixup or cutmix"""
     batch_size = min(forget_img.size(0), retain_img.size(0))
     forget_img = forget_img[:batch_size]
     retain_img = retain_img[:batch_size]
     
     if mode.lower() == 'mixup':
-        mixed_img = ratio * forget_img + (1 - ratio) * retain_img
+        mixed_img = (1 - ratio) * forget_img + (ratio) * retain_img
+            
     elif mode.lower() == 'cutmix':
-        mixed_img = retain_img.clone()
-        bbx1, bby1, bbx2, bby2 = rand_bbox(retain_img.shape, ratio)
-        mixed_img[:, :, bbx1:bbx2, bby1:bby2] = forget_img[:, :, bbx1:bbx2, bby1:bby2]
+        mixed_img = forget_img.clone()
+        bbx1, bby1, bbx2, bby2 = rand_bbox(retain_img.shape, 1 - ratio)
+        mixed_img[:, :, bbx1:bbx2, bby1:bby2] = retain_img[:, :, bbx1:bbx2, bby1:bby2]
     else:
         raise ValueError(f"Unknown mixing mode: {mode}")
     return mixed_img
 
 
-def apply_crop_resize(img, min_ratio=0.3, max_ratio=0.6, size=224):
-    """random crop and resize augmentation with configurable ratios"""
-    min_size = int(min_ratio * size)
-    max_size = int(max_ratio * size)
-    crop_size = random.randint(min_size, max_size)
+def apply_crop_resize(img, ratio=0.5, size=224):
+    """Random crop and resize augmentation with configurable ratios"""
+    min_size = max(int(ratio * size), 1)
+    crop_size = min_size
     crop = transforms.RandomCrop(crop_size)
     resize = transforms.Resize(size)
     return resize(crop(img))
@@ -129,7 +146,7 @@ def apply_gaussian_blur(img, kernel_size=5, sigma=2):
 
 def main():
     args = arg_parser.parse_args()
-    data = args.data_type
+    
     seed = 2
     utils.setup_seed(seed)
     
@@ -141,20 +158,18 @@ def main():
         retain=retain_loader, forget=forget_loader, val=val_loader
     )
     
-    pretrained_model_paths = [
-        "./pretrained_model/0model_SA_best159.pth.tar",
-        "./pretrained_model/retraincheckpoint100.pth.tar",
-    ]
-    
     # validate data choice
+    data = args.data_type
     if data not in unlearn_data_loaders:
         raise ValueError(f"Invalid data type: {data}. Must be one of {list(unlearn_data_loaders.keys())}")
     
+    original_model_path = "./pretrained_model/0model_SA_best159.pth.tar"
+    retrianed_model_path = "./pretrained_model/retraincheckpoint100.pth.tar"
+    
     data_loader = unlearn_data_loaders[data]
     
-    original_model = load_model(pretrained_model_paths[0], device).to(device)
-    retrained_model = load_model(pretrained_model_paths[1], device).to(device)
-    
+    original_model = load_model(original_model_path, device).to(device)
+    retrained_model = load_model(retrianed_model_path, device).to(device)
     original_model.eval()
     retrained_model.eval()
     
@@ -164,9 +179,9 @@ def main():
     augmentation_methods = {
         'original': lambda x: x,
         'gaussian': lambda x: add_gaussian_noise(x, sigma=0.1),
-        'mixup': lambda x, y: mix_forget_retain(x, y, ratio=0.5, mode='mixup'),
-        'cutmix': lambda x, y: mix_forget_retain(x, y, ratio=0.5, mode='cutmix'),
-        'crop_resize': apply_crop_resize,
+        'mixup': lambda x, y, ratio: mix_forget_retain(x, y, ratio=ratio, mode='mixup'),
+        'cutmix': lambda x, y, ratio: mix_forget_retain(x, y, ratio=ratio, mode='cutmix'),
+        'crop_resize': lambda x, ratio=0.5: apply_crop_resize(x, ratio=ratio),
         'color_distortion': apply_color_distortion,
         'color_jitter': apply_color_jitter,
         'rotation': apply_rotation,
@@ -174,63 +189,153 @@ def main():
         'gaussian_blur': apply_gaussian_blur
     }
 
-    # choose method to use
-    method = 'original'  # change this to use different augmentations
-    
-    linear_cka = kernel_cka = linear_check = kernel_check = 0
-    
-    for i, data in enumerate(tqdm(data_loader)):
-        mix_loader = retain_loader if args.data_type == "forget" else forget_loader
-        img, _ = data
-        img = img.to(device)
+    method = args.aug_method[0]
+    mix_ratios = np.arange(0.0, 1.1, 0.1)
+    results = {}
+
+    if method in ['mixup', 'cutmix', 'crop_resize']:
+        mix_loader = unlearn_data_loaders["retain"] if data == "forget" else unlearn_data_loaders["forget"]
         
-        # apply augmentation
-        if method in ['mixup', 'cutmix']:
-            # for methods that require two images
-            try:
-                mix_data = next(iter(mix_loader))
-                mix_image, _ = mix_data
-                mix_image = mix_image.to(device)
-                aug_img = augmentation_methods[method](img, mix_image)
-            except StopIteration:
-                continue
-        else:
-            # for single image augmentations
+        for ratio in mix_ratios:
+            print(f"\nTesting {method} ratio: {ratio:.1f}")
+            batch_results = {
+                'linear_cka': 0,
+                'kernel_cka': 0,
+                'linear_check': 0,
+                'kernel_check': 0
+            }
+            
+            mix_loader_iter = iter(mix_loader)
+            
+            for img, _ in tqdm(data_loader):
+                img = img.to(device)
+                
+                if method in ['mixup', 'cutmix']:
+                    try:
+                        mix_image, _ = next(mix_loader_iter)
+                    except StopIteration:
+                        mix_loader_iter = iter(mix_loader)
+                        mix_image, _ = next(mix_loader_iter)
+                    
+                    mix_image = mix_image.to(device)
+                    aug_img = augmentation_methods[method](img, mix_image, ratio)
+                else:  # crop_resize
+                    aug_img = augmentation_methods[method](img, ratio)
+                
+                features_o = []
+                features_r = []
+                
+                hooks_o = [original_model.avgpool.register_forward_hook(hook_fn_o)]
+                hooks_r = [retrained_model.avgpool.register_forward_hook(hook_fn_r)]
+                
+                with torch.no_grad():
+                    original_model(aug_img)
+                    retrained_model(aug_img)
+                    
+                    f_o, f_r = features_o[0], features_r[0]
+                    f_o = f_o.view(f_o.size(0), -1)
+                    f_r = f_r.view(f_r.size(0), -1)
+                    
+                    cuda_cka = CudaCKA(device)
+                    batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o, f_r)
+                    batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
+                    batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
+                    batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
+                
+                for hook in hooks_o + hooks_r:
+                    hook.remove()
+                
+                torch.cuda.empty_cache()
+            
+            results[ratio] = {k: v / len(data_loader) for k, v in batch_results.items()}
+        
+        # plot results for each ratio
+        plot_results(results, method)
+    
+    else:
+        # process non-mixing methods
+        print(f"\nTesting {method} augmentation")
+        batch_results = {
+            'linear_cka': 0,
+            'kernel_cka': 0,
+            'linear_check': 0,
+            'kernel_check': 0
+        }
+        
+        for img, _ in tqdm(data_loader):
+            img = img.to(device)
             aug_img = augmentation_methods[method](img)
-        
-        features_o = []
-        features_r = []
-        
-        hooks_o = []
-        hooks_r = []
-        
-        hooks_o.append(original_model.avgpool.register_forward_hook(hook_fn_o))
-        hooks_r.append(retrained_model.avgpool.register_forward_hook(hook_fn_r))
-        
-        with torch.no_grad():
-            original_output = original_model(aug_img)
-            retrained_output = retrained_model(aug_img)
             
-            f_o, f_r = features_o[0], features_r[0]
-            f_o = f_o.view(f_o.size(0), -1)
-            f_r = f_r.view(f_r.size(0), -1)
+            features_o = []
+            features_r = []
             
-            cuda_cka = CudaCKA(device)
-            linear_cka += cuda_cka.linear_CKA(f_o, f_r)
-            linear_check += cuda_cka.linear_CKA(f_o, f_o)
-            kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
-            kernel_check += cuda_cka.kernel_CKA(f_r, f_r)
+            hooks_o = [original_model.avgpool.register_forward_hook(hook_fn_o)]
+            hooks_r = [retrained_model.avgpool.register_forward_hook(hook_fn_r)]
+            
+            with torch.no_grad():
+                original_model(aug_img)
+                retrained_model(aug_img)
+                
+                f_o, f_r = features_o[0], features_r[0]
+                f_o = f_o.view(f_o.size(0), -1)
+                f_r = f_r.view(f_r.size(0), -1)
+                
+                cuda_cka = CudaCKA(device)
+                batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o, f_r)
+                batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
+                batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
+                batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
+            
+            for hook in hooks_o + hooks_r:
+                hook.remove()
+                
+            torch.cuda.empty_cache()
+        
+        results[0] = {k: v / len(data_loader) for k, v in batch_results.items()}
+
+    # print results
+    print("\n=== Results across mix ratios ===")
+    print("Ratio  Linear_CKA  Kernel_CKA  Linear_Check  Kernel_Check")
+    print("-" * 55)
     
-        for hook in hooks_o:
-            hook.remove()
-        for hook in hooks_r:
-            hook.remove()
+    for ratio in sorted(results.keys()):
+        r = results[ratio]
+        print(f"{ratio:4.1f}  {r['linear_cka']:10.4f}  {r['kernel_cka']:10.4f}  "
+              f"{r['linear_check']:12.4f}  {r['kernel_check']:12.4f}")
+
+
+def plot_results(results, method, save_dir='./plots'):
+    """plot and save the CKA results as a bar chart"""
+    os.makedirs(save_dir, exist_ok=True)
     
-    print(f"\n=== Results for {method} ===")
-    print(f"Linear CKA: {linear_cka / len(data_loader):.4f}")
-    print(f"Kernel CKA: {kernel_cka / len(data_loader):.4f}")
-    print(f"Linear CKA check: {linear_check / len(data_loader):.4f}")
-    print(f"Kernel CKA check: {kernel_check / len(data_loader):.4f}")
+    ratios = sorted(results.keys())
+    linear_cka_values = [results[r]['linear_cka'].to("cpu") for r in ratios]
+    
+    plt.figure(figsize=(12, 6))
+    bars = plt.bar(ratios, linear_cka_values, width=0.08)
+    plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+    
+    # customize the plot
+    plt.xlabel('Ratio', fontsize=12)
+    plt.ylabel('Linear CKA', fontsize=12)
+    plt.title(f'Linear CKA vs Ratio for {method}', fontsize=14)
+    
+    # add value labels on top of each bar
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.3f}',
+                ha='center', va='bottom', rotation=0)
+    
+    # set y-axis to start from 0
+    plt.ylim(0, max(linear_cka_values) * 1.1)
+    
+    # set x-axis ticks
+    plt.xticks(ratios, [f'{r:.1f}' for r in ratios])
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, f'{method}_linear_cka.png'), dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 if __name__ == "__main__":
