@@ -106,6 +106,19 @@ def apply_crop_resize(img, ratio=0.5, size=224):
     return resize(crop(img))
 
 
+def apply_multi_crop_resize(img, num_crops=2, ratio=0.5, size=224):
+    """Apply multiple random crops to the same image and resize them"""
+    min_size = max(int(ratio * size), 1)
+    crop_size = min_size
+    crop = transforms.RandomCrop(crop_size)
+    resize = transforms.Resize(size)
+    
+    crops = []
+    for _ in range(num_crops):
+        crops.append(resize(crop(img)))
+    return crops
+
+
 def apply_color_distortion(img, p_drop=0.3):
     """color channel dropping"""
     if random.random() < p_drop:
@@ -182,6 +195,7 @@ def main():
         'mixup': lambda x, y, ratio: mix_forget_retain(x, y, ratio=ratio, mode='mixup'),
         'cutmix': lambda x, y, ratio: mix_forget_retain(x, y, ratio=ratio, mode='cutmix'),
         'crop_resize': lambda x, ratio=0.5: apply_crop_resize(x, ratio=ratio),
+        'multi_crop': lambda x, ratio=0.5: apply_multi_crop_resize(x, num_crops=2, ratio=ratio),
         'color_distortion': apply_color_distortion,
         'color_jitter': apply_color_jitter,
         'rotation': apply_rotation,
@@ -193,7 +207,7 @@ def main():
     mix_ratios = np.arange(0.0, 1.1, 0.1)
     results = {}
 
-    if method in ['mixup', 'cutmix', 'crop_resize']:
+    if method in ['mixup', 'cutmix', 'crop_resize', 'multi_crop']:
         mix_loader = unlearn_data_loaders["retain"] if data == "forget" else unlearn_data_loaders["forget"]
         
         for ratio in mix_ratios:
@@ -219,7 +233,45 @@ def main():
                     
                     mix_image = mix_image.to(device)
                     aug_img = augmentation_methods[method](img, mix_image, ratio)
-                else:  # crop_resize
+                elif method == 'multi_crop':
+                    crops = augmentation_methods[method](img, ratio)
+                    aug_img = crops[0]  # use first crop as primary
+                    second_crop = crops[1]  # second crop for comparison
+                    
+                    features_o = []
+                    features_r = []
+                    features_o2 = []
+                    features_r2 = []
+                    
+                    hooks_o = [original_model.avgpool.register_forward_hook(hook_fn_o)]
+                    hooks_r = [retrained_model.avgpool.register_forward_hook(hook_fn_r)]
+                    
+                    with torch.no_grad():
+                        # process first crop
+                        original_model(aug_img)
+                        retrained_model(aug_img)
+                        f_o1, f_r1 = features_o[0], features_r[0]
+                        features_o.clear()
+                        features_r.clear()
+                        
+                        # process second crop
+                        original_model(second_crop)
+                        retrained_model(second_crop)
+                        f_o2, f_r2 = features_o[0], features_r[0]
+                        
+                        # reshape features
+                        f_o1 = f_o1.view(f_o1.size(0), -1)
+                        f_r1 = f_r1.view(f_r1.size(0), -1)
+                        f_o2 = f_o2.view(f_o2.size(0), -1)
+                        f_r2 = f_r2.view(f_r2.size(0), -1)
+                        
+                        cuda_cka = CudaCKA(device)
+                        # compare CKA between different crops
+                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o1, f_o2)
+                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o1, f_o2)
+                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_r1, f_r2)
+                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r1, f_r2)
+                else:  # original crop_resize
                     aug_img = augmentation_methods[method](img, ratio)
                 
                 features_o = []
@@ -246,6 +298,7 @@ def main():
                     hook.remove()
                 
                 torch.cuda.empty_cache()
+                break
             
             results[ratio] = {k: v / len(data_loader) for k, v in batch_results.items()}
         
@@ -309,7 +362,8 @@ def plot_results(results, method, save_dir='./plots'):
     os.makedirs(save_dir, exist_ok=True)
     
     ratios = sorted(results.keys())
-    linear_cka_values = [results[r]['linear_cka'].to("cpu") for r in ratios]
+    # convert GPU tensors to CPU and then to float values
+    linear_cka_values = [float(results[r]['linear_cka'].cpu()) for r in ratios]
     
     plt.figure(figsize=(12, 6))
     bars = plt.bar(ratios, linear_cka_values, width=0.08)
