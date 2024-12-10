@@ -240,8 +240,6 @@ def main():
                     
                     features_o = []
                     features_r = []
-                    features_o2 = []
-                    features_r2 = []
                     
                     hooks_o = [original_model.avgpool.register_forward_hook(hook_fn_o)]
                     hooks_r = [retrained_model.avgpool.register_forward_hook(hook_fn_r)]
@@ -249,28 +247,21 @@ def main():
                     with torch.no_grad():
                         # process first crop
                         original_model(aug_img)
-                        retrained_model(aug_img)
+                        retrained_model(second_crop)
                         f_o1, f_r1 = features_o[0], features_r[0]
                         features_o.clear()
                         features_r.clear()
                         
-                        # process second crop
-                        original_model(second_crop)
-                        retrained_model(second_crop)
-                        f_o2, f_r2 = features_o[0], features_r[0]
-                        
                         # reshape features
                         f_o1 = f_o1.view(f_o1.size(0), -1)
                         f_r1 = f_r1.view(f_r1.size(0), -1)
-                        f_o2 = f_o2.view(f_o2.size(0), -1)
-                        f_r2 = f_r2.view(f_r2.size(0), -1)
                         
                         cuda_cka = CudaCKA(device)
                         # compare CKA between different crops
-                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o1, f_o2)
-                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o1, f_o2)
-                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_r1, f_r2)
-                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r1, f_r2)
+                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o1, f_r1)
+                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o1, f_r1)
+                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_o1, f_o1)
+                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r1, f_r1)
                 else:  # original crop_resize
                     aug_img = augmentation_methods[method](img, ratio)
                 
@@ -288,18 +279,17 @@ def main():
                     f_o = f_o.view(f_o.size(0), -1)
                     f_r = f_r.view(f_r.size(0), -1)
                     
-                    cuda_cka = CudaCKA(device)
-                    batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o, f_r)
-                    batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
-                    batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
-                    batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
+                    if method == 'mixup' or method == 'cutmix' or method == 'crop_resize':
+                        cuda_cka = CudaCKA(device)
+                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o, f_r)
+                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
+                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
+                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
                 
                 for hook in hooks_o + hooks_r:
                     hook.remove()
                 
                 torch.cuda.empty_cache()
-                break
-            
             results[ratio] = {k: v / len(data_loader) for k, v in batch_results.items()}
         
         # plot results for each ratio
