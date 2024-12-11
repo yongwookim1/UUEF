@@ -79,7 +79,7 @@ def extract_features(model, loader: DataLoader, device) -> Tuple[np.ndarray, np.
     return features_tensor, labels_array
 
 
-def create_data_loaders():
+def create_data_loaders(args):
     transform = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
@@ -128,7 +128,7 @@ def evaluate_office_home_knn(model):
     
     args = arg_parser.parse_args()
     
-    train_loader, test_loader = create_data_loaders()
+    train_loader, test_loader = create_data_loaders(args)
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
@@ -150,7 +150,7 @@ def main():
     
     args = arg_parser.parse_args()
     
-    train_loader, test_loader = create_data_loaders()
+    train_loader, test_loader = create_data_loaders(args)
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
