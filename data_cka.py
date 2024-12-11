@@ -24,14 +24,14 @@ def hook_fn_r(module, input, output):
     features_r.append(output)
 
 
-def rand_bbox(img_shape, lam):
+def rand_bbox(img_shape, lamdbda):
     W = img_shape[2]
     H = img_shape[3]
     
-    # ensure lam is between 0 and 1
-    lam = np.clip(lam, 0.0, 1.0)
+    # ensure lamdbda is between 0 and 1
+    lamdbda = np.clip(lamdbda, 0.0, 1.0)
     
-    cut_rat = np.sqrt(1. - lam)
+    cut_rat = np.sqrt(1. - lamdbda)
     cut_w = int(W * cut_rat)
     cut_h = int(H * cut_rat)
     
@@ -65,7 +65,7 @@ def add_gaussian_noise(img, sigma):
 
 
 def mix_forget_retain(forget_img, retain_img, ratio=0.5, mode='mixup'):
-    """Mix forget and retain images using mixup or cutmix"""
+    """mix forget and retain images using mixup or cutmix"""
     batch_size = min(forget_img.size(0), retain_img.size(0))
     forget_img = forget_img[:batch_size]
     retain_img = retain_img[:batch_size]
@@ -218,6 +218,7 @@ def main():
                     
                     mix_image = mix_image.to(device)
                     aug_img = augmentation_methods[method](img, mix_image, ratio)
+                    
                 elif method == 'multi_crop':
                     crops = augmentation_methods[method](img, ratio)
                     aug_img = crops[0]  # first crop
@@ -247,7 +248,8 @@ def main():
                         batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
                         batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
                         batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
-                else:  # original crop_resize
+                        
+                elif method == 'crop_resize':
                     aug_img = augmentation_methods[method](img, ratio)
                 
                 features_o = []
