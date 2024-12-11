@@ -3,6 +3,7 @@
 /pretrained_model
 /result
 **/*.txt
+!requirements.txt
 /txt
 /stats
 /CKA.pytorch
