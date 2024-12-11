@@ -16,21 +16,6 @@ import utils
 from CKA.CKA import CudaCKA
 
 
-def load_model(pretrained_model_path, device):
-    print(f"\nLoading model: {pretrained_model_path}")
-    model = models.resnet50(weights=None)
-    checkpoint = torch.load(pretrained_model_path, map_location=device)
-    if "state_dict" in checkpoint.keys():
-        checkpoint = checkpoint["state_dict"]
-    state_dict = {k.replace("module.", ""): v for k, v in checkpoint.items()}
-    state_dict = {
-        k: v for k, v in state_dict.items() if not k.startswith("normalize.")
-    }
-    model.load_state_dict(state_dict, strict=True)
-    print(f"Model loading complete: {pretrained_model_path}")
-    return model
-
-
 def hook_fn_o(module, input, output):
     features_o.append(output)
 
@@ -176,13 +161,13 @@ def main():
     if data not in unlearn_data_loaders:
         raise ValueError(f"Invalid data type: {data}. Must be one of {list(unlearn_data_loaders.keys())}")
     
-    original_model_path = "./pretrained_model/0model_SA_best159.pth.tar"
-    retrianed_model_path = "./pretrained_model/retraincheckpoint100.pth.tar"
-    
+    original_model_path = args.model_path
+    retrianed_model_path = args.retrained_model_path
+
     data_loader = unlearn_data_loaders[data]
     
-    original_model = load_model(original_model_path, device).to(device)
-    retrained_model = load_model(retrianed_model_path, device).to(device)
+    original_model = utils.load_model(original_model_path, device).to(device)
+    retrained_model = utils.load_model(retrianed_model_path, device).to(device)
     original_model.eval()
     retrained_model.eval()
     
@@ -235,8 +220,8 @@ def main():
                     aug_img = augmentation_methods[method](img, mix_image, ratio)
                 elif method == 'multi_crop':
                     crops = augmentation_methods[method](img, ratio)
-                    aug_img = crops[0]  # use first crop as primary
-                    second_crop = crops[1]  # second crop for comparison
+                    aug_img = crops[0]  # first crop
+                    second_crop = crops[1]  # second crop
                     
                     features_o = []
                     features_r = []
@@ -248,20 +233,20 @@ def main():
                         # process first crop
                         original_model(aug_img)
                         retrained_model(second_crop)
-                        f_o1, f_r1 = features_o[0], features_r[0]
+                        f_o, f_r = features_o[0], features_r[0]
                         features_o.clear()
                         features_r.clear()
                         
                         # reshape features
-                        f_o1 = f_o1.view(f_o1.size(0), -1)
-                        f_r1 = f_r1.view(f_r1.size(0), -1)
+                        f_o = f_o.view(f_o.size(0), -1)
+                        f_r = f_r.view(f_r.size(0), -1)
                         
                         cuda_cka = CudaCKA(device)
                         # compare CKA between different crops
-                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o1, f_r1)
-                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o1, f_r1)
-                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_o1, f_o1)
-                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r1, f_r1)
+                        batch_results['linear_cka'] += cuda_cka.linear_CKA(f_o, f_r)
+                        batch_results['kernel_cka'] += cuda_cka.kernel_CKA(f_o, f_r)
+                        batch_results['linear_check'] += cuda_cka.linear_CKA(f_o, f_o)
+                        batch_results['kernel_check'] += cuda_cka.kernel_CKA(f_r, f_r)
                 else:  # original crop_resize
                     aug_img = augmentation_methods[method](img, ratio)
                 
