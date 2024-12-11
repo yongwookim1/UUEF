@@ -139,8 +139,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 
                 # evaluate knn on office-home dataset
                 if args.evaluate_knn:
-                    print(f"Validating Office-Home kNN, CKA")
-                    unlearned_model = utils.load_model(f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}/{args.unlearn}checkpoint.pth.tar", device)
+                    print(f"Validating kNN on Office-Home")
+                    unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                     unlearned_model.to(device)
                     office_home_knn = main_knn.evaluate_office_home_knn(unlearned_model)
                     accuracy["office_home_knn"] = float(office_home_knn*100)
@@ -151,7 +151,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     print(f"Validating CKA between retrained model and current model on Office-Home dataset")
                     retrained_model_path = args.retrained_model_path
                     retrained_model = utils.load_model(retrained_model_path, device)
-                    unleanred_model = utils.load_model(f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}/{args.unlearn}checkpoint.pth.tar", device)
+                    unleanred_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                     retrained_model.to(device)
                     unleanred_model.to(device)
                     
