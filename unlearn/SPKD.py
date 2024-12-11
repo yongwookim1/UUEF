@@ -40,10 +40,6 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
         print("Unlearning phase")
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(forget_loader), args=args
-                )
 
             # compute output
             output_clean = model(image)
@@ -122,7 +118,7 @@ def SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             
             ce_loss = criterion(output, target)
             loss = 10 * ce_loss + 10 * similarity_loss
-
+            
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
