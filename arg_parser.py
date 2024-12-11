@@ -66,6 +66,10 @@ def parse_args():
     parser.add_argument("--model_path", type=str, default=None, help="the path of original model")
     parser.add_argument("--use_wandb", action="store_true", help="use weights and biases")
     parser.add_argument("--wandb_name", type=str, default=None, help="name of wandb")
+    parser.add_argument("--evaluate_knn", action="store_true", help="evaluate knn during unlearning")
+    parser.add_argument("--evaluate_cka", action="store_true", help="evaluate cka during unlearning")
+    parser.add_argument("--retrained_model_path", type=str, default="./pretrained_model/retraincheckpoint100.pth.tar", help="the path of retrained model") # set your retrained model path
+    parser.add_argument("--office_home_dataset_path", type=str, default="/home/dataset/OfficeHomeDataset_10072016/Real World", help="the path of office-home dataset") # set your office-home dataset path
     parser.add_argument("--original_Df", action="store_true", default=False, help="use not transformed Df")
     parser.add_argument(
         "--data_type",
@@ -73,6 +77,15 @@ def parse_args():
         default=None,
         choices=["retain", "forget", None],
         help="Type of data to use for CKA analysis",
+    )
+    parser.add_argument(
+        "--aug_method", 
+        type=str, 
+        nargs='+',
+        default=['original', 'gaussian', 'crop_resize', 'color_distortion', 
+                'color_jitter', 'rotation', 'cutout', 'gaussian_blur', 
+                'mixup', 'cutmix'],
+        help="augmentation methods to use"
     )
 
     ##################################### Training setting #################################################

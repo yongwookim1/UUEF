@@ -14,12 +14,14 @@ import time
 
 import numpy as np
 import torch
+from torchvision import models
 from dataset import *
 from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
 from torchvision import transforms
 import wandb
+from CKA.CKA import CudaCKA
 
 __all__ = [
     "setup_model_dataset",
@@ -44,6 +46,79 @@ def init_wandb(args, project_name="unlearning"):
     )
     
     return wandb.run
+
+
+def evaluate_cka(original_model, unlearned_model, data_loader, device):
+    original_model.to(device)
+    unlearned_model.to(device)
+    original_model.eval()
+    unlearned_model.eval()
+    
+    class FeatureExtractor:
+        def __init__(self):
+            self.features = []
+            
+        def hook_fn(self, module, input, output):
+            self.features.append(output)
+            
+        def clear(self):
+            self.features = []
+
+    original_extractor = FeatureExtractor()
+    unlearned_extractor = FeatureExtractor()
+    
+    linear_cka = kernel_cka = linear_check = kernel_check = 0
+    cuda_cka = CudaCKA(device)
+
+    for data, _ in tqdm(data_loader, desc="Evaluating CKA"):
+        data = data.to(device)
+
+        # register hooks
+        hooks = [
+            original_model.avgpool.register_forward_hook(original_extractor.hook_fn),
+            unlearned_model.avgpool.register_forward_hook(unlearned_extractor.hook_fn)
+        ]
+
+        with torch.no_grad():
+            original_model(data)
+            unlearned_model(data)
+
+            f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
+            f_u = unlearned_extractor.features[0].view(unlearned_extractor.features[0].size(0), -1)
+
+            linear_cka += cuda_cka.linear_CKA(f_o, f_u)
+            linear_check += cuda_cka.linear_CKA(f_o, f_o)
+            kernel_cka += cuda_cka.kernel_CKA(f_o, f_u)
+            kernel_check += cuda_cka.kernel_CKA(f_u, f_u)
+
+        # cleanup
+        for hook in hooks:
+            hook.remove()
+        original_extractor.clear()
+        unlearned_extractor.clear()
+
+    n = len(data_loader)
+    results = {
+        "linear_cka": linear_cka / n,
+        "kernel_cka": kernel_cka / n,
+        "linear_check": linear_check / n,
+        "kernel_check": kernel_check / n
+    }
+    
+    return results
+
+
+def load_model(pretrained_model_path, device):
+    print(f"\nLoading model: {pretrained_model_path}")
+    model = models.resnet50(weights=None)
+    checkpoint = torch.load(pretrained_model_path, map_location=device)
+    if "state_dict" in checkpoint.keys():
+        checkpoint = checkpoint["state_dict"]
+    state_dict = {k.replace("module.", ""): v for k, v in checkpoint.items()}
+    state_dict = {k: v for k, v in state_dict.items() if not (k.startswith('normalize.'))}
+    model.load_state_dict(state_dict, strict=True)
+    print(f"Model loading complete: {pretrained_model_path}")
+    return model
 
 
 def warmup_lr(epoch, step, optimizer, one_epoch_step, args):

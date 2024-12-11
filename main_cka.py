@@ -77,20 +77,20 @@ def main():
     args = arg_parser.parse_args()
     utils.setup_seed(2)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    data_dir = '/home/dataset/OfficeHomeDataset_10072016/Real World' # set your dataset path
+    data_dir = args.office_home_dataset_path
 
     # model paths
     pretrained_model_paths = [
-        "./pretrained_model/0model_SA_best159.pth.tar", # set your model path
-        "./pretrained_model/retraincheckpoint100.pth.tar",
+        args.model_path, # set your model path
+        args.retrained_model_path,
     ]
 
     full_dataset = OfficeHomeDataset(data_dir)
     data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
 
     # model setup
-    model = load_model(pretrained_model_paths[1], device).to(device)
-    retrained_model = load_model(pretrained_model_paths[0], device).to(device)
+    model = load_model(pretrained_model_paths[0], device).to(device)
+    retrained_model = load_model(pretrained_model_paths[1], device).to(device)
     model.eval()
     retrained_model.eval()
 
@@ -123,7 +123,7 @@ def main():
             kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
             kernel_check += cuda_cka.kernel_CKA(f_r, f_r)
 
-        # cleanup
+        # clean up
         for hook in hooks:
             hook.remove()
         original_extractor.clear()

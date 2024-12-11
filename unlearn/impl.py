@@ -5,9 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import utils
-from trainer.val import validate
 import wandb
+from torch.utils.data import DataLoader
 
+import main_knn
+from main_cka import OfficeHomeDataset
+from trainer.val import validate
+from pruner import extract_mask, prune_model_custom, remove_prune
+import pruner
 
 def plot_training_curve(training_result, save_dir, prefix):
     # plot training curve
@@ -122,22 +127,59 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 state = {"state_dict": model.state_dict()}
                 utils.save_checkpoint(state, False, save_dir, args.unlearn)
                 
+                device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+                
+                # evaluate standard accuracy
                 accuracy = {}
                 for name, loader in data_loaders.items():
                     print(f"Validating {name} loader")     
                     val_acc = validate(loader, model, criterion, args)
                     accuracy[name] = val_acc
                     print(f"{name} acc: {val_acc}")
+                
+                # evaluate knn on office-home dataset
+                if args.evaluate_knn:
+                    print(f"Validating Office-Home kNN, CKA")
+                    unlearned_model = utils.load_model(f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}/{args.unlearn}checkpoint.pth.tar", device)
+                    unlearned_model.to(device)
+                    office_home_knn = main_knn.evaluate_office_home_knn(unlearned_model)
+                    accuracy["office_home_knn"] = float(office_home_knn*100)
+                    print(f"office_home_knn: {accuracy['office_home_knn']}")
+                
+                # evaluate cka on office-home dataset
+                if args.evaluate_cka:
+                    print(f"Validating CKA between retrained model and current model on Office-Home dataset")
+                    retrained_model_path = args.retrained_model_path
+                    retrained_model = utils.load_model(retrained_model_path, device)
+                    unleanred_model = utils.load_model(f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/{epoch}/{args.unlearn}checkpoint.pth.tar", device)
+                    retrained_model.to(device)
+                    unleanred_model.to(device)
+                    
+                    office_home_dataset_path = args.office_home_dataset_path # set your office-home dataset path
+                    full_dataset = OfficeHomeDataset(office_home_dataset_path)
+                    data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
+
+                    cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device)
+                    
+                    accuracy["office_home_cka"] = float(cka["linear_cka"]*100)
+                    print(f"office_home_cka: {accuracy['office_home_cka']}")
                     
                 if args.use_wandb:
-                    wandb.log({
+                    metrics = {
                         "epoch": epoch,
-                        "retain_acc": accuracy["retain"],
-                        "forget_acc": accuracy["forget"],
-                    })
+                        f"{args.dataset}_retain_acc": accuracy["retain"],
+                        f"{args.dataset}_forget_acc": accuracy["forget"],
+                    }
                     
-                print(f"Saved results in {save_dir}")
-                print("one epoch duration:{}".format(time.time() - start_time))
+                    if args.evaluate_knn:
+                        metrics["office_home_knn"] = accuracy["office_home_knn"]
+                    
+                    if args.evaluate_cka:
+                        metrics["office_home_cka"] = accuracy["office_home_cka"]
+                    
+                    wandb.log(metrics)
+                    
+                print(f"saved results in {save_dir}")
 
     return _wrapped
 

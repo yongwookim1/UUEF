@@ -87,7 +87,7 @@ def create_data_loaders():
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     
-    dataset = OfficeHomeDataset('/home/dataset/OfficeHomeDataset_10072016/Real World', transform=transform)
+    dataset = OfficeHomeDataset(args.office_home_dataset_path, transform=transform)
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
     
@@ -123,8 +123,7 @@ def evaluate_knn(
     knn.fit(train_features, train_labels)
     return knn.score(test_features, test_labels)
 
-
-def main(model: None):
+def evaluate_office_home_knn(model):
     utils.setup_seed(2)
     
     args = arg_parser.parse_args()
@@ -133,11 +132,32 @@ def main(model: None):
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
-    if model == None:
-        model_paths = [
-            "/home/kyw1654/unlearning/baseline/pretrained_model/retraincheckpoint100.pth.tar",
-        ]
-        model = load_model(model_paths[0], device)
+    train_features, train_labels = extract_features(model, train_loader, device)
+    test_features, test_labels = extract_features(model, test_loader, device)
+    
+    knn_accuracy = evaluate_knn(
+        train_features,
+        train_labels,
+        test_features,
+        test_labels,
+        5,
+    )
+    print(f"kNN(k=5) accuracy: {knn_accuracy * 100:.2f}%")
+    return knn_accuracy
+
+def main():
+    utils.setup_seed(2)
+    
+    args = arg_parser.parse_args()
+    
+    train_loader, test_loader = create_data_loaders()
+    
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
+    model_paths = [
+        args.retrained_model_path
+    ]
+    model = load_model(model_paths[0], device)
     
     train_features, train_labels = extract_features(model, train_loader, device)
     test_features, test_labels = extract_features(model, test_loader, device)
@@ -154,5 +174,4 @@ def main(model: None):
 
 
 if __name__ == "__main__":
-    model = None
-    main(model)
+    main()
