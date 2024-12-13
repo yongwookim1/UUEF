@@ -70,64 +70,102 @@ def evaluate_knn(model, args):
     return knn_accuracy
 
 
-def evaluate_cka(original_model, unlearned_model, data_loader, device):
-    original_model.to(device)
-    unlearned_model.to(device)
-    original_model.eval()
-    unlearned_model.eval()
-    
-    class FeatureExtractor:
-        def __init__(self):
-            self.features = []
-            
-        def hook_fn(self, module, input, output):
-            self.features.append(output)
-            
-        def clear(self):
-            self.features = []
+class FeatureExtractor:
+    def __init__(self):
+        self.features = []
+        
+    def hook_fn(self, module, input, output):
+        self.features.append(output)
+        
+    def clear(self):
+        self.features = []
 
-    original_extractor = FeatureExtractor()
-    unlearned_extractor = FeatureExtractor()
+
+def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
+    """
+    compute CKA similarity between two models
     
-    linear_cka = kernel_cka = linear_check = kernel_check = 0
+    args:
+        model: first model to compare
+        retrained_model: second model to compare
+        data_loader: dataLoader containing the dataset
+        device: torch device to use
+        mode: 'all' for all layers or 'avgpool' for only avgpool layer
+    """
+    model.eval()
+    retrained_model.eval()
+
+    # feature extractors
+    original_extractor = FeatureExtractor()
+    retrained_extractor = FeatureExtractor()
     cuda_cka = CudaCKA(device)
 
-    for data, _ in tqdm(data_loader, desc="Evaluating CKA"):
-        data = data.to(device)
+    if mode == 'all':
+        layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']
+        cka_result = {f"linear_cka{i}": 0 for i in range(len(layers))}
+        cka_result.update({f"linear_check{i}": 0 for i in range(len(layers))})
+    else:
+        linear_cka = kernel_cka = linear_check = kernel_check = 0
+        cuda_cka = CudaCKA(device)
 
-        # register hooks
-        hooks = [
-            original_model.avgpool.register_forward_hook(original_extractor.hook_fn),
-            unlearned_model.avgpool.register_forward_hook(unlearned_extractor.hook_fn)
-        ]
+    for data in tqdm(data_loader):
+        img, _ = data
+        img = img.to(device)
+
+        if mode == 'all':
+            hooks = [
+                getattr(model, layer).register_forward_hook(original_extractor.hook_fn)
+                for layer in layers
+            ] + [
+                getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn)
+                for layer in layers
+            ]
+        else:
+            hooks = [
+                model.avgpool.register_forward_hook(original_extractor.hook_fn),
+                retrained_model.avgpool.register_forward_hook(retrained_extractor.hook_fn)
+            ]
 
         with torch.no_grad():
-            original_model(data)
-            unlearned_model(data)
+            model(img)
+            retrained_model(img)
 
-            f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
-            f_u = unlearned_extractor.features[0].view(unlearned_extractor.features[0].size(0), -1)
+            if mode == 'all':
+                for i in range(len(layers)):
+                    f_o = original_extractor.features[i].view(original_extractor.features[i].size(0), -1)
+                    f_r = retrained_extractor.features[i].view(retrained_extractor.features[i].size(0), -1)
+                    cka_result[f"linear_cka{i}"] += cuda_cka.linear_CKA(f_o, f_r)
+                    cka_result[f"linear_check{i}"] += cuda_cka.linear_CKA(f_o, f_o)
+            else:
+                f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
+                f_r = retrained_extractor.features[0].view(retrained_extractor.features[0].size(0), -1)
+                linear_cka += cuda_cka.linear_CKA(f_o, f_r)
+                kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
+                linear_check += cuda_cka.linear_CKA(f_o, f_o)
+                kernel_check += cuda_cka.kernel_CKA(f_r, f_r)
 
-            linear_cka += cuda_cka.linear_CKA(f_o, f_u)
-            linear_check += cuda_cka.linear_CKA(f_o, f_o)
-            kernel_cka += cuda_cka.kernel_CKA(f_o, f_u)
-            kernel_check += cuda_cka.kernel_CKA(f_u, f_u)
-
-        # cleanup
         for hook in hooks:
             hook.remove()
         original_extractor.clear()
-        unlearned_extractor.clear()
+        retrained_extractor.clear()
 
     n = len(data_loader)
-    results = {
-        "linear_cka": linear_cka / n,
-        "kernel_cka": kernel_cka / n,
-        "linear_check": linear_check / n,
-        "kernel_check": kernel_check / n
-    }
-    
-    return results
+    if mode == 'all':
+        final_results = {}
+        cka_values = []
+        for i, layer in enumerate(layers):
+            avg_cka = cka_result[f"linear_cka{i}"] / n
+            avg_check = cka_result[f"linear_check{i}"] / n
+            cka_values.append(avg_cka)
+            final_results[layer] = {
+                'cka': avg_cka.cpu().numpy(),
+            }
+        
+        return final_results
+    else:
+        return {
+            'cka': linear_cka / n,
+        }
 
 
 def load_model(pretrained_model_path, device):

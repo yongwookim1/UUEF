@@ -156,15 +156,22 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     retrained_model.to(device)
                     unleanred_model.to(device)
                     
-                    office_home_dataset_path = args.office_home_dataset_path # set your office-home dataset path
+                    office_home_dataset_path = args.office_home_dataset_path
                     full_dataset = OfficeHomeDataset(office_home_dataset_path)
-                    data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
-
-                    cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device)
+                    data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
                     
-                    accuracy["office_home_cka"] = float(cka["linear_cka"]*100)
-                    print(f"office_home_cka: {accuracy['office_home_cka']}")
+                    mode = "all"
                     
+                    cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device, mode=mode)
+                    
+                    if mode == "avgpool":
+                        accuracy["office_home_cka_avgpool"] = float(cka['cka']*100)
+                        print(f"office_home_cka_avgpool: {accuracy['office_home_cka_avgpool']}")
+                    else:
+                        for layer, results in cka.items():
+                            accuracy[f"office_home_cka_{layer}"] = float(results['cka']*100)
+                            print(f"office_home_cka_{layer}: {accuracy[f'office_home_cka_{layer}']}")
+                
                 if args.use_wandb:
                     metrics = {
                         "epoch": epoch,
@@ -176,7 +183,9 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         metrics["office_home_knn"] = accuracy["office_home_knn"]
                     
                     if args.evaluate_cka:
-                        metrics["office_home_cka"] = accuracy["office_home_cka"]
+                        for key in accuracy:
+                            if key.startswith("office_home_cka"):
+                                metrics[key] = accuracy[key]
                     
                     wandb.log(metrics)
                     

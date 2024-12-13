@@ -6,6 +6,7 @@ from torchvision import models, transforms
 from tqdm import tqdm
 import os
 from PIL import Image
+import matplotlib.pyplot as plt
 
 import arg_parser
 import utils
@@ -72,69 +73,128 @@ class FeatureExtractor:
         self.features = []
 
 
-def main():
-    # configuration
-    args = arg_parser.parse_args()
-    utils.setup_seed(2)
-    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    data_dir = args.office_home_dataset_path
+def plot_cka_results(cka_values, layer_names, save_path='./plots/cka_results.png'):
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(range(len(cka_values)), cka_values)
+    
+    plt.xlabel('Layers')
+    plt.ylabel('Linear CKA')
+    plt.title('Original model and Retrained model CKA Values Across Different Layers')
+    plt.xticks(range(len(layer_names)), layer_names, rotation=45)
+    
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.3f}',
+                ha='center', va='bottom')
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
 
-    # model paths
-    pretrained_model_paths = [
-        args.model_path, # set your model path
-        args.retrained_model_path,
-    ]
 
-    full_dataset = OfficeHomeDataset(data_dir)
-    data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
-
-    # model setup
-    model = load_model(pretrained_model_paths[0], device).to(device)
-    retrained_model = load_model(pretrained_model_paths[1], device).to(device)
+def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
+    """
+    compute CKA similarity between two models
+    
+    args:
+        model: first model to compare
+        retrained_model: second model to compare
+        data_loader: dataLoader containing the dataset
+        device: torch device to use
+        mode: 'all' for all layers or 'avgpool' for only avgpool layer
+    """
     model.eval()
     retrained_model.eval()
 
     # feature extractors
     original_extractor = FeatureExtractor()
     retrained_extractor = FeatureExtractor()
-    
-    linear_cka = kernel_cka = linear_check = kernel_check = 0
     cuda_cka = CudaCKA(device)
+
+    if mode == 'all':
+        layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']
+        cka_result = {f"linear_cka{i}": 0 for i in range(len(layers))}
+        cka_result.update({f"linear_check{i}": 0 for i in range(len(layers))})
+    else:
+        linear_cka = kernel_cka = linear_check = kernel_check = 0
+        cuda_cka = CudaCKA(device)
 
     for data in tqdm(data_loader):
         img, _ = data
         img = img.to(device)
 
-        # register hooks
-        hooks = [
-            model.avgpool.register_forward_hook(original_extractor.hook_fn),
-            retrained_model.avgpool.register_forward_hook(retrained_extractor.hook_fn)
-        ]
+        if mode == 'all':
+            hooks = [
+                getattr(model, layer).register_forward_hook(original_extractor.hook_fn)
+                for layer in layers
+            ] + [
+                getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn)
+                for layer in layers
+            ]
+        else:
+            hooks = [
+                model.avgpool.register_forward_hook(original_extractor.hook_fn),
+                retrained_model.avgpool.register_forward_hook(retrained_extractor.hook_fn)
+            ]
 
         with torch.no_grad():
             model(img)
             retrained_model(img)
 
-            f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
-            f_r = retrained_extractor.features[0].view(retrained_extractor.features[0].size(0), -1)
+            if mode == 'all':
+                for i in range(len(layers)):
+                    f_o = original_extractor.features[i].view(original_extractor.features[i].size(0), -1)
+                    f_r = retrained_extractor.features[i].view(retrained_extractor.features[i].size(0), -1)
+                    cka_result[f"linear_cka{i}"] += cuda_cka.linear_CKA(f_o, f_r)
+                    cka_result[f"linear_check{i}"] += cuda_cka.linear_CKA(f_o, f_o)
+            else:
+                f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
+                f_r = retrained_extractor.features[0].view(retrained_extractor.features[0].size(0), -1)
+                linear_cka += cuda_cka.linear_CKA(f_o, f_r)
+                kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
+                linear_check += cuda_cka.linear_CKA(f_o, f_o)
+                kernel_check += cuda_cka.kernel_CKA(f_r, f_r)
 
-            linear_cka += cuda_cka.linear_CKA(f_o, f_r)
-            linear_check += cuda_cka.linear_CKA(f_o, f_o)
-            kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
-            kernel_check += cuda_cka.kernel_CKA(f_r, f_r)
-
-        # clean up
         for hook in hooks:
             hook.remove()
         original_extractor.clear()
         retrained_extractor.clear()
 
-    # print results
     n = len(data_loader)
-    print(f"Linear CKA: {linear_cka / n:.3f}")
-    print(f"Kernel CKA: {kernel_cka / n:.3f}")
-    print(f"Linear CKA check: {linear_check / n:.3f}")
-    print(f"Kernel CKA check: {kernel_check / n:.3f}")
+    if mode == 'all':
+        final_results = {}
+        cka_values = []
+        for i, layer in enumerate(layers):
+            avg_cka = cka_result[f"linear_cka{i}"] / n
+            avg_check = cka_result[f"linear_check{i}"] / n
+            cka_values.append(avg_cka)
+            final_results[layer] = {
+                'cka': avg_cka.cpu().numpy(),
+            }
+        
+        return final_results
+    else:
+        return {
+            'cka': linear_cka / n,
+        }
+
+
+def main():
+    args = arg_parser.parse_args()
+    utils.setup_seed(2)
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
+    full_dataset = OfficeHomeDataset(args.office_home_dataset_path)
+    data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
+
+    model = load_model(args.model_path, device).to(device)
+    retrained_model = load_model(args.retrained_model_path, device).to(device)
+
+    # add mode selection based on args if needed
+    mode = 'all'  # or 'avgpool'
+    results = evaluate_cka(model, retrained_model, data_loader, device, mode=mode)
 
 
 if __name__ == "__main__":
