@@ -165,8 +165,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device, mode=mode)
                     
                     if mode == "avgpool":
-                        accuracy["office_home_cka_avgpool"] = float(cka['cka']*100)
-                        print(f"office_home_cka_avgpool: {accuracy['office_home_cka_avgpool']}")
+                        accuracy["office_home_cka"] = float(cka['cka']*100)
+                        print(f"office_home_cka: {accuracy['office_home_cka']}")
                     else:
                         for layer, results in cka.items():
                             accuracy[f"office_home_cka_{layer}"] = float(results['cka']*100)
