@@ -123,10 +123,9 @@ def evaluate_knn(
     knn.fit(train_features, train_labels)
     return knn.score(test_features, test_labels)
 
-def evaluate_office_home_knn(model):
+
+def evaluate_office_home_knn(model, args):
     utils.setup_seed(2)
-    
-    args = arg_parser.parse_args()
     
     train_loader, test_loader = create_data_loaders(args)
     
@@ -144,6 +143,7 @@ def evaluate_office_home_knn(model):
     )
     print(f"kNN(k=5) accuracy: {knn_accuracy * 100:.2f}%")
     return knn_accuracy
+
 
 def main():
     utils.setup_seed(2)

@@ -15,13 +15,14 @@ import time
 import numpy as np
 import torch
 from torchvision import models
+from torchvision import transforms
 from dataset import *
 from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
-from torchvision import transforms
 import wandb
 from CKA.CKA import CudaCKA
+import main_knn
 
 __all__ = [
     "setup_model_dataset",
@@ -46,6 +47,27 @@ def init_wandb(args, project_name="unlearning"):
     )
     
     return wandb.run
+
+
+def evaluate_knn(model, args):
+    setup_seed(2)
+    
+    train_loader, test_loader = main_knn.create_data_loaders(args)
+    
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
+    train_features, train_labels = main_knn.extract_features(model, train_loader, device)
+    test_features, test_labels = main_knn.extract_features(model, test_loader, device)
+    
+    knn_accuracy = main_knn.evaluate_knn(
+        train_features,
+        train_labels,
+        test_features,
+        test_labels,
+        5,
+    )
+    print(f"kNN(k=5) accuracy: {knn_accuracy * 100:.2f}%")
+    return knn_accuracy
 
 
 def evaluate_cka(original_model, unlearned_model, data_loader, device):

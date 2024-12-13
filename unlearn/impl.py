@@ -132,17 +132,18 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 # evaluate standard accuracy
                 accuracy = {}
                 for name, loader in data_loaders.items():
-                    print(f"Validating {name} loader")     
-                    val_acc = validate(loader, model, criterion, args)
-                    accuracy[name] = val_acc
-                    print(f"{name} acc: {val_acc}")
+                    if name != "val":
+                        print(f"Validating {name} loader")
+                        val_acc = validate(loader, model, criterion, args)
+                        accuracy[name] = val_acc
+                        print(f"{name} acc: {val_acc}")
                 
                 # evaluate knn on office-home dataset
                 if args.evaluate_knn:
                     print(f"Validating kNN on Office-Home")
                     unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                     unlearned_model.to(device)
-                    office_home_knn = main_knn.evaluate_office_home_knn(unlearned_model)
+                    office_home_knn = utils.evaluate_knn(unlearned_model, args)
                     accuracy["office_home_knn"] = float(office_home_knn*100)
                     print(f"office_home_knn: {accuracy['office_home_knn']}")
                 
