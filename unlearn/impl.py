@@ -160,7 +160,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     full_dataset = OfficeHomeDataset(office_home_dataset_path)
                     data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
                     
-                    mode = "all"
+                    mode = "avgpool"
                     
                     cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device, mode=mode)
                     
