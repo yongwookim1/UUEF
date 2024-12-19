@@ -64,6 +64,11 @@ python main_train.py --dataset imagenet --arch resnet50 --imagenet_arch --save_d
 python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original model path} --class_to_replace ${classes to forget} --unlearn_epochs 1
 ```
 
+A simple example to generate saliency map for ResNet-50 on ImageNet.
+```bash
+python generate_mask.py --dataset imagenet --arch resnet50 --imagenet_arch --save_dir ./mask --model_path /home/kyw1654/unlearning/baseline/pretrained_model/0model_SA_best159.pth.tar --unlearn_epochs 1
+```
+
 3. Unlearn the original model.
 * Our method
 ```bash
