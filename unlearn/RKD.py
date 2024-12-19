@@ -72,7 +72,7 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
-    distill_loader = retain_loader
+    distill_loader = forget_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     
@@ -84,7 +84,7 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     start = time.time()
     if args.imagenet_arch:
         # unlearning phase
-        print("unlearning phase")
+        print("Unlearning phase")
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
@@ -117,7 +117,7 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 start = time.time()
 
         # restore phase with RKD
-        print("restore phase")
+        print("Restore phase")
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
@@ -166,6 +166,7 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             ce_loss = criterion(output, target)
             # combine losses with weights
             loss = 10 * distance_loss + 10 * angle_loss + 10 * ce_loss
+            loss = 10 * distance_loss + 10 * angle_loss
 
             optimizer.zero_grad()
             loss.backward()

@@ -3,6 +3,7 @@ import time
 import copy
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import utils
 
@@ -12,16 +13,62 @@ sys.path.append(".")
 from imagenet import get_x_y_from_data_dict
 
 
+def pdist(e, squared=False, eps=1e-12):
+    e_square = e.pow(2).sum(dim=1)
+    prod = e @ e.t()
+    res = (e_square.unsqueeze(1) + e_square.unsqueeze(0) - 2 * prod).clamp(min=eps)
+
+    if not squared:
+        res = res.sqrt()
+
+    res = res.clone()
+    res[range(len(e)), range(len(e))] = 0
+    return res
+
+
+class RKdAngle(nn.Module):
+    def forward(self, student, teacher):
+        # N x C
+        # N x N x C
+
+        with torch.no_grad():
+            td = (teacher.unsqueeze(0) - teacher.unsqueeze(1))
+            norm_td = F.normalize(td, p=2, dim=2)
+            t_angle = torch.bmm(norm_td, norm_td.transpose(1, 2)).view(-1)
+
+        sd = (student.unsqueeze(0) - student.unsqueeze(1))
+        norm_sd = F.normalize(sd, p=2, dim=2)
+        s_angle = torch.bmm(norm_sd, norm_sd.transpose(1, 2)).view(-1)
+
+        loss = F.smooth_l1_loss(s_angle, t_angle, reduction='mean')
+        return loss
+
+
+class RkdDistance(nn.Module):
+    def forward(self, student, teacher):
+        with torch.no_grad():
+            t_d = pdist(teacher, squared=False)
+            mean_td = t_d[t_d>0].mean()
+            t_d = t_d / mean_td
+
+        d = pdist(student, squared=False)
+        mean_d = d[d>0].mean()
+        d = d / mean_d
+
+        loss = F.smooth_l1_loss(d, t_d, reduction='mean')
+        return loss
+
+
 @iterative_unlearn
-def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def RKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(AKD_IL, 'original_model'):
-        AKD_IL.original_model = copy.deepcopy(model)
-        AKD_IL.original_model.eval()
-        for param in AKD_IL.original_model.parameters():
+    if not hasattr(RKD_IL, 'original_model'):
+        RKD_IL.original_model = copy.deepcopy(model)
+        RKD_IL.original_model.eval()
+        for param in RKD_IL.original_model.parameters():
             param.requires_grad = False
     
-    original_model = AKD_IL.original_model
+    original_model = RKD_IL.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
@@ -36,18 +83,8 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     start = time.time()
     if args.imagenet_arch:
-        # get retain data iterator
-        retain_iterator = iter(retain_loader)
-        
         # combined unlearning and restore phase
-        for i, forget_data in enumerate(forget_loader):
-            try:
-                retain_data = next(retain_iterator)
-            except StopIteration:
-                # if we run out of retain data, create new iterator
-                retain_iterator = iter(retain_loader)
-                retain_data = next(retain_iterator)
-
+        for i, (forget_data, retain_data) in enumerate(zip(forget_loader, distill_loader)):
             # process forget data
             forget_image, forget_target = get_x_y_from_data_dict(forget_data, device)
 
@@ -73,11 +110,20 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             with torch.no_grad():
                 _ = original_model(retain_image)
             
-            # calculate feature similarity loss using only retain data features
+            # calculate RKD losses using only retain data features
             f_s, f_t = features_s[1], features_t[0]
             f_s_flat = f_s.view(f_s.size(0), -1)
             f_t_flat = f_t.view(f_t.size(0), -1)
-            similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
+            
+            # normalize feature vectors
+            f_s_norm = F.normalize(f_s_flat, p=2, dim=1)
+            f_t_norm = F.normalize(f_t_flat, p=2, dim=1)
+            
+            # compute RKD losses using normalized features
+            dist_criterion = RkdDistance()
+            angle_criterion = RKdAngle()
+            distance_loss = dist_criterion(f_s_norm, f_t_norm)
+            angle_loss = angle_criterion(f_s_norm, f_t_norm)
             
             # cleanup hooks
             features_s.clear()
@@ -88,9 +134,7 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             # calculate combined loss
             forget_loss = -criterion(forget_output, forget_target)
             retain_loss = criterion(retain_output, retain_target)
-            similarity_loss = similarity_loss
-            
-            total_loss = 1 * forget_loss + 10 * retain_loss + 10 * similarity_loss
+            total_loss = 1 * forget_loss + 20 * retain_loss + 20 * distance_loss + 20 * angle_loss
 
             # update model
             optimizer.zero_grad()

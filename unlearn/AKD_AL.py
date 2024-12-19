@@ -12,27 +12,20 @@ sys.path.append(".")
 from imagenet import get_x_y_from_data_dict
 
 
-def l1_regularization(model):
-    params_vec = []
-    for param in model.parameters():
-        params_vec.append(param.view(-1))
-    return torch.linalg.norm(torch.cat(params_vec), ord=1)
-
-
 @iterative_unlearn
-def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def AKD_AL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(AKD, 'original_model'):
-        AKD.original_model = copy.deepcopy(model)
-        AKD.original_model.eval()
-        for param in AKD.original_model.parameters():
+    if not hasattr(AKD_AL, 'original_model'):
+        AKD_AL.original_model = copy.deepcopy(model)
+        AKD_AL.original_model.eval()
+        for param in AKD_AL.original_model.parameters():
             param.requires_grad = False
     
-    original_model = AKD.original_model
+    original_model = AKD_AL.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
-    distill_loader = forget_loader
+    distill_loader = retain_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     
@@ -79,12 +72,13 @@ def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                     )
                 )
                 start = time.time()
+
         # restore phase
         print("Restore phase")
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
-            # extract feature map
+            # extract feature maps
             features_s = []
             features_t = []
             
@@ -97,19 +91,25 @@ def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             hooks = []
             hooks_t = []
             
-            hooks.append(model.avgpool.register_forward_hook(hook_fn))
-            hooks_t.append(original_model.avgpool.register_forward_hook(hook_fn_t))
+            # register hooks for all major feature extraction layers
+            feature_layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool']
+            for layer_name in feature_layers:
+                hooks.append(getattr(model, layer_name).register_forward_hook(hook_fn))
+                hooks_t.append(getattr(original_model, layer_name).register_forward_hook(hook_fn_t))
                     
             output = model(image)
             with torch.no_grad():
                 _ = original_model(image)
             
-            f_s, f_t = features_s[0], features_t[0]
-            f_s_flat = f_s.view(f_s.size(0), -1)
-            f_t_flat = f_t.view(f_t.size(0), -1)
+            # compute similarity loss for all feature maps
+            similarity_loss = 0
+            for f_s, f_t in zip(features_s, features_t):
+                f_s_flat = f_s.view(f_s.size(0), -1)
+                f_t_flat = f_t.view(f_t.size(0), -1)
+                similarity_loss += F.mse_loss(f_s_flat, f_t_flat)
             
-            # compute similarity loss
-            similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
+            # normalize by number of feature maps
+            similarity_loss /= len(features_s)
             
             features_s.clear()
             features_t.clear()
@@ -121,7 +121,6 @@ def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
             ce_loss = criterion(output, target)
             loss = 10 * similarity_loss + 10 * ce_loss
-            loss = similarity_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -145,44 +144,7 @@ def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                     )
                 )
                 start = time.time()
-    else:
-        for i, (image, target) in enumerate(forget_loader):
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(forget_loader), args=args
-                )
-
-            image = image.to(device)
-            target = target.to(device)
-
-            # compute output
-            output_clean = model(image)
-            loss = -criterion(output_clean, target)
-
-            optimizer.zero_grad()
-            loss.backward()
-
-            optimizer.step()
-
-            output = output_clean.float()
-            loss = loss.float()
-            prec1 = utils.accuracy(output.data, target)[0]
-
-            losses.update(loss.item(), image.size(0))
-            top1.update(prec1.item(), image.size(0))
-
-            if (i + 1) % args.print_freq == 0:
-                end = time.time()
-                print(
-                    "Epoch: [{0}][{1}/{2}]\t"
-                    "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                    "Accuracy {top1.val:.3f} ({top1.avg:.3f})\t"
-                    "Time {3:.2f}".format(
-                        epoch, i, len(forget_loader), end - start, loss=losses, top1=top1
-                    )
-                )
-                start = time.time()
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg
+    return top1.avg 

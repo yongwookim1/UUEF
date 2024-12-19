@@ -13,15 +13,15 @@ from imagenet import get_x_y_from_data_dict
 
 
 @iterative_unlearn
-def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def SPKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(AKD_IL, 'original_model'):
-        AKD_IL.original_model = copy.deepcopy(model)
-        AKD_IL.original_model.eval()
-        for param in AKD_IL.original_model.parameters():
+    if not hasattr(SPKD_IL, 'original_model'):
+        SPKD_IL.original_model = copy.deepcopy(model)
+        SPKD_IL.original_model.eval()
+        for param in SPKD_IL.original_model.parameters():
             param.requires_grad = False
     
-    original_model = AKD_IL.original_model
+    original_model = SPKD_IL.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
@@ -73,11 +73,19 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             with torch.no_grad():
                 _ = original_model(retain_image)
             
-            # calculate feature similarity loss using only retain data features
+            # calculate SPKD similarity loss using retain data features
             f_s, f_t = features_s[1], features_t[0]
-            f_s_flat = f_s.view(f_s.size(0), -1)
-            f_t_flat = f_t.view(f_t.size(0), -1)
-            similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
+            b = f_s.size(0)
+            f_s_flat = f_s.view(b, -1)
+            f_t_flat = f_t.view(b, -1)
+            
+            similarity_s = torch.mm(f_s_flat, f_s_flat.t())
+            similarity_t = torch.mm(f_t_flat, f_t_flat.t())
+            
+            similarity_s = F.normalize(similarity_s, p=2, dim=1)
+            similarity_t = F.normalize(similarity_t, p=2, dim=1)
+            
+            similarity_loss = torch.norm(similarity_s - similarity_t, p='fro') / (b * b)
             
             # cleanup hooks
             features_s.clear()
@@ -88,7 +96,6 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             # calculate combined loss
             forget_loss = -criterion(forget_output, forget_target)
             retain_loss = criterion(retain_output, retain_target)
-            similarity_loss = similarity_loss
             
             total_loss = 1 * forget_loss + 10 * retain_loss + 10 * similarity_loss
 
@@ -126,4 +133,4 @@ def AKD_IL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg
+    return top1.avg 
