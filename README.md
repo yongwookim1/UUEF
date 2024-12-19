@@ -118,9 +118,10 @@ python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --im
 
 ## Evaluation
 
-Evaluate unlearned model using CKA(Centered Kernel Alignment) on Office-Home dataset. You can set your dataset path and model path in line 22 and 23 in 'main_cka.py' file.
+Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Add arguments --evaluate_knn and --evaluate_cka to evaluate the unlearned model.
 ```bash
-python main_cka.py --dataset imagenet --arch resnet50 --imagenet_arch --batch_size 1024
+--evaluate_knn
+--evaluate_cka
 ```
 
 ## Acknowledgements
