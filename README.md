@@ -113,7 +113,7 @@ python -u main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 -
 
 * SalUn
 ```bash
-python main_random.py --unlearn RL --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning} --class_to_replace ${classes to forget} --model_path ${original model path} --save_dir ${save_dir} --mask_path ${saliency_map_path}
+python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn RL_imagenet --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning} --mask_path ${saliency_map_path}
 ```
 
 ## Evaluation
