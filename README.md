@@ -32,6 +32,11 @@ Machine unlearning (MU) has become a critical area of research due to data regul
 ## Requirements
 
 ```bash
+conda env create -f env.yaml
+conda activate unlearning
+```
+
+```bash
 pip install -r requirements.txt
 ```
 
