@@ -30,6 +30,7 @@ from .PCU import PCU
 from .PCU_forget import PCU_forget
 from .PL_AKD import PL_AKD
 from .RL_pro import RL_proximal
+from .RL_imagenet import RL_imagenet
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
 
