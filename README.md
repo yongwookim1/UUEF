@@ -45,7 +45,10 @@ pip install -r requirements.txt
 All datasets used in our experiments are publicly available.
 
 1. Download the [ImageNet-1k dataset](https://image-net.org/download.php). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
-2. Place the dataset under the '/home/dataset/imagenet1k/data/' directory to match the expected path or you could set the path in line 21 in 'imagenet.py' file.
+2. Place the dataset in the "/home/dataset/imagenet1k/data/" directory to match the expected path. Alternatively, you can specify a custom path using the --data_path argument:
+```bash
+--data_path ${path of the imagenet dataset}
+```
 
 ## Training and Unlearning
 
