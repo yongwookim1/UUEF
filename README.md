@@ -120,7 +120,7 @@ python main_forget.py --dataset imagenet --data_dir ${path of the imagenet datas
 
 To enable evaluation and tracking of the unlearned model using WandB, include the following flags when running your script:
 ```bash
---use_wandb --project_name ${project name}
+--use_wandb --wandb_name ${project name}
 ```
 
 Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Include flags --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model.
