@@ -118,10 +118,11 @@ python main_forget.py --dataset imagenet --num_classes 1000 --arch resnet50 --im
 
 ## Evaluation
 
-Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Add arguments --evaluate_knn and --evaluate_cka to evaluate the unlearned model.
+Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Add arguments --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model.
 ```bash
 --evaluate_knn
---evaluate_cka
+
+--evaluate_cka --retrained_model_path ${path of the retrained model}
 ```
 
 ## Acknowledgements
