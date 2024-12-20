@@ -409,7 +409,7 @@ def setup_model_dataset(args):
             batch_size=args.batch_size,
             train_subset_indices=train_subset_indices,
             args=args,
-            data_path=args.air
+            data_path=args.data_dir
         )
         retain_loader = loaders["train"]
         val_loader = loaders["val"]
