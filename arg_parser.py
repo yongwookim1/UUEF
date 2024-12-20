@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument(
         "--data_dir",
         type=str,
-        default="./tiny-imagenet-200",
+        default="/home/dataset/imagenet1k/data",
         help="dir to tiny-imagenet",
     )
     parser.add_argument("--num_workers", type=int, default=4)
