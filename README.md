@@ -123,11 +123,11 @@ To enable evaluation and tracking of the unlearned model using WandB, include th
 --use_wandb --wandb_name ${project name}
 ```
 
-Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Include flags --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model.
+Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Include flags --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model and the path of the office-home dataset.
 ```bash
 --evaluate_knn
 
---evaluate_cka --retrained_model_path ${path of the retrained model}
+--evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset}
 ```
 
 ## Acknowledgements
