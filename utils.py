@@ -403,12 +403,30 @@ def setup_model_dataset(args):
                 class_id = int(class_id)
                 train_class_indices = (train_ys == class_id).nonzero().squeeze()
                 train_subset_indices[train_class_indices] = 0
+        
+        # divide validation set into retain and forget
+        val_subset_indices = torch.ones_like(val_ys)
+        
+        if args.class_to_replace is None and args.num_indexes_to_replace is None:
+            val_subset_indices = None
+            
+        elif args.num_indexes_to_replace:
+            total_samples = len(val_ys)
+            num_to_replace = min(args.num_indexes_to_replace, total_samples)
+            replace_indices = torch.randperm(total_samples)[:num_to_replace]
+            val_subset_indices[replace_indices] = 0
+            
+        elif args.class_to_replace:
+            for class_id in args.class_to_replace:
+                class_id = int(class_id)
+                val_class_indices = (val_ys == class_id).nonzero().squeeze()
+                val_subset_indices[val_class_indices] = 0
 
         loaders = prepare_data(
             dataset="imagenet",
             batch_size=args.batch_size,
             train_subset_indices=train_subset_indices,
-            val_subset_indices=train_subset_indices,
+            val_subset_indices=val_subset_indices,
             args=args,
             data_path=args.data_dir
         )

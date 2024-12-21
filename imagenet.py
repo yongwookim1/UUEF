@@ -61,9 +61,10 @@ def prepare_data(
         
     if val_subset_indices is not None:
         val_forget_indices = torch.ones_like(val_subset_indices) - val_subset_indices
-        val_retain_indices = torch.nonzero(val_subset_indices).squeeze()
-        val_forget_indices = torch.nonzero(val_forget_indices).squeeze()
-        retain_validation_set = Subset(validation_set, val_retain_indices)
+        val_subset_indices = torch.nonzero(val_subset_indices)
+
+        val_forget_indices = torch.nonzero(val_forget_indices)
+        retain_validation_set = Subset(validation_set, val_subset_indices)
         forget_validation_set = Subset(validation_set, val_forget_indices)
 
     loaders = {}
