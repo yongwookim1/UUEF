@@ -32,7 +32,8 @@ def main():
             model,
             retain_loader,
             forget_loader,
-            val_loader
+            val_retain_loader,
+            val_forget_loader
         ) = utils.setup_model_dataset(args)
     else:
         (
@@ -132,7 +133,7 @@ def main():
     print(f"number of forget dataset {len(forget_loader.dataset)}")
     if args.dataset == 'imagenet' :
         unlearn_data_loaders = OrderedDict(
-            retain=retain_loader, forget=forget_loader, val=val_loader
+            retain=retain_loader, forget=forget_loader, val_retain=val_retain_loader, val_forget=val_forget_loader
         )
     else :
         unlearn_data_loaders = OrderedDict(

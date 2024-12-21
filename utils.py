@@ -408,17 +408,19 @@ def setup_model_dataset(args):
             dataset="imagenet",
             batch_size=args.batch_size,
             train_subset_indices=train_subset_indices,
+            val_subset_indices=train_subset_indices,
             args=args,
             data_path=args.data_dir
         )
         retain_loader = loaders["train"]
-        val_loader = loaders["val"]
+        val_retain_loader = loaders["val_retain"]
+        val_forget_loader = loaders["val_forget"]
         if train_subset_indices is None:
             forget_loader = None
-            return model, retain_loader, val_loader
+            return model, retain_loader, val_retain_loader, val_forget_loader
         else:
             forget_loader = loaders["fog"]
-            return model, retain_loader, forget_loader, val_loader
+            return model, retain_loader, forget_loader, val_retain_loader, val_forget_loader
         
 
     elif args.dataset == "cifar100_no_val":

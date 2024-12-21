@@ -133,11 +133,10 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 if args.unlearn != "SCRUB":
                     accuracy = {}
                     for name, loader in data_loaders.items():
-                        if name != "val":
-                            print(f"Validating {name} loader")
-                            val_acc = validate(loader, model, criterion, args)
-                            accuracy[name] = val_acc
-                            print(f"{name} acc: {val_acc}")
+                        print(f"Validating {name} loader")
+                        val_acc = validate(loader, model, criterion, args)
+                        accuracy[name] = val_acc
+                        print(f"{name} acc: {val_acc}")
                     
                     # evaluate knn on office-home dataset
                     if args.evaluate_knn:
@@ -178,6 +177,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                             "epoch": epoch,
                             f"{args.dataset}_retain_acc": accuracy["retain"],
                             f"{args.dataset}_forget_acc": accuracy["forget"],
+                            f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
+                            f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
                         }
                         
                         if args.evaluate_knn:
@@ -193,11 +194,10 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     if epoch % 10 == 0:
                         accuracy = {}
                         for name, loader in data_loaders.items():
-                            if name != "val":
-                                print(f"Validating {name} loader")
-                                val_acc = validate(loader, model, criterion, args)
-                                accuracy[name] = val_acc
-                                print(f"{name} acc: {val_acc}")
+                            print(f"Validating {name} loader")
+                            val_acc = validate(loader, model, criterion, args)
+                            accuracy[name] = val_acc
+                            print(f"{name} acc: {val_acc}")
                         
                         # evaluate knn on office-home dataset
                         if args.evaluate_knn:
@@ -238,6 +238,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                                 "epoch": epoch,
                                 f"{args.dataset}_retain_acc": accuracy["retain"],
                                 f"{args.dataset}_forget_acc": accuracy["forget"],
+                                f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
+                                f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
                             }
                             
                             if args.evaluate_knn:

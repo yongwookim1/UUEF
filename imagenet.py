@@ -60,20 +60,25 @@ def prepare_data(
         forget_set = Subset(train_set, forget_indices)
         
     if val_subset_indices is not None:
-        val_subset_indices = torch.nonzero(val_subset_indices).squeeze()
-        validation_set = Subset(validation_set, val_subset_indices)
+        val_forget_indices = torch.ones_like(val_subset_indices) - val_subset_indices
+        val_retain_indices = torch.nonzero(val_subset_indices).squeeze()
+        val_forget_indices = torch.nonzero(val_forget_indices).squeeze()
+        retain_validation_set = Subset(validation_set, val_retain_indices)
+        forget_validation_set = Subset(validation_set, val_forget_indices)
 
+    loaders = {}
     if train_subset_indices is not None:
-        loaders = {
-            "train": DataLoader(retain_set, batch_size=batch_size, num_workers=8, shuffle=shuffle),
-            "val": DataLoader(validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle),
-            "fog": DataLoader(forget_set, batch_size=batch_size, num_workers=8, shuffle=shuffle),
-        }
+        loaders["train"] = DataLoader(retain_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+        loaders["fog"] = DataLoader(forget_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
     else:
-        loaders = {
-            "train": DataLoader(train_set, batch_size=batch_size, num_workers=8, shuffle=shuffle),
-            "val": DataLoader(validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle),
-        }
+        loaders["train"] = DataLoader(train_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+
+    if val_subset_indices is not None:
+        loaders["val_retain"] = DataLoader(retain_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+        loaders["val_forget"] = DataLoader(forget_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+    else:
+        loaders["val"] = DataLoader(validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+
     return loaders
 
 
