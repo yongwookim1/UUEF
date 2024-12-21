@@ -15,6 +15,8 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
     forget_dataset = deepcopy(forget_loader.dataset)
     
     original_targets = deepcopy(forget_dataset.dataset.targets)
+    
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     if mask is not None :
         print("mask on")
     
@@ -37,8 +39,8 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
                             one_epoch_step=loader_len, args=args)
         
         for i, data in enumerate(forget_loader):
-            image, target = get_x_y_from_data_dict(data, f"cuda:{int(args.gpu)}")
-            target = torch.randint(0, args.num_classes, target.shape).cuda()
+            image, target = get_x_y_from_data_dict(data, device)
+            target = torch.randint(0, args.num_classes, target.shape).to(device)
             
             # compute output
             output_clean = model(image)
