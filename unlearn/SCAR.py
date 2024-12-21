@@ -1,8 +1,13 @@
 import sys
 import time
 import copy
+from tqdm import tqdm
+import os
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
 import utils
 
 from .impl import iterative_unlearn
@@ -28,38 +33,25 @@ def normalize_cov(cov_mat):
     return cov_mat
 
 
-def mahalanobis_dist(samples, samples_lab, mean, S_inv):
+def mahalanobis_dist(samples, samples_lab, mean, S_inv, device):
     # check optimized version
     diff = F.normalize(tuckey_transf(samples), p=2, dim=-1)[:,None,:] - F.normalize(mean, p=2, dim=-1)
+    diff = diff.to("cpu")
+    S_inv = S_inv.to("cpu")
     right_term = torch.matmul(diff.permute(1,0,2), S_inv)
     mahalanobis = torch.diagonal(torch.matmul(right_term, diff.permute(1,2,0)),dim1=1,dim2=2)
     return mahalanobis
 
 
 def distill(outputs_ret, outputs_original):
-    soft_log_old = torch.nn.functional.log_softmax(outputs_original+10e-5, dim=1)
-    soft_log_new = torch.nn.functional.log_softmax(outputs_ret+10e-5, dim=1)
-    kl_div = torch.nn.functional.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction='batchmean', log_target=True)
+    soft_log_old = F.log_softmax(outputs_original+10e-5, dim=1)
+    soft_log_new = F.log_softmax(outputs_ret+10e-5, dim=1)
+    kl_div = F.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction='batchmean', log_target=True)
     return kl_div
+
 
 def tuckey_transf(vectors, delta=0.5):
     return torch.pow(vectors, delta)
-
-
-def pairwise_cos_dist(x, y):
-    """compute pairwise cosine distance between two tensors"""
-    x_norm = torch.norm(x, dim=1).unsqueeze(1)
-    y_norm = torch.norm(y, dim=1).unsqueeze(1)
-    x = x / x_norm
-    y = y / y_norm
-    return 1 - torch.mm(x, y.transpose(0, 1))
-
-
-def L2(embs_fgt,mu_distribs):
-    embs_fgt = embs_fgt.unsqueeze(1)
-    mu_distribs = mu_distribs.unsqueeze(0)
-    dists=torch.norm((embs_fgt-mu_distribs),dim=2)
-    return dists
 
 
 def accuracy(model, loader, args):
@@ -100,70 +92,99 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
     
+    forget_loader = DataLoader(forget_loader.dataset,
+                               batch_size=args.batch_size,
+                               shuffle=True,
+                               num_workers=4)
+    
+    retain_loader = DataLoader(retain_loader.dataset,
+                               batch_size=args.batch_size,
+                               shuffle=True,
+                               num_workers=4)
+    
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available else "cpu")
     
-    # embeddings of retain set
-    with torch.no_grad():
-        ret_embs=[]
-        labs=[]
-        cnt=0
-        for img_ret, lab_ret in retain_loader:
-            img_ret, lab_ret = img_ret.to(device), lab_ret.to(device)
-            
-            features = []
-            
-            def hook_fn(module, input, output):
-                features.append(output)
-                
-            hooks = []
-            
-            hooks.append(model.avgpool.register_forward_hook(hook_fn))
-            
+    # define paths for saving/loading
+    embeddings_path = "./stats/ret_embs_labs.pth"
+    distribs_path = "./stats/distribs_cov_matrix_inv.pth"
+
+    # load embeddings and labels if they exist
+    if os.path.exists(embeddings_path):
+        saved_data = torch.load(embeddings_path)
+        SCAR.ret_embs = saved_data['ret_embs']
+        SCAR.labs = saved_data['labs']
+    else:
+        if not hasattr(SCAR, 'ret_embs') or not hasattr(SCAR, 'labs'):
+            model.eval()
             with torch.no_grad():
-                output = model(img_ret)
-                logits_ret = original_model(img_ret)
-            
-            f = features[0].flatten(1) # (batch_size, feature_dim)
-            
-            ret_embs.append(f)
-            labs.append(lab_ret)
-            cnt+=1
-            
-            features.clear()
-            for hook in hooks:
-                hook.remove()
-        ret_embs=torch.cat(ret_embs)
-        labs=torch.cat(labs)
-    
+                ret_embs = []
+                labs = []
+                for img_ret, lab_ret in tqdm(retain_loader):
+                    img_ret, lab_ret = img_ret.to(device), lab_ret.to(device)
+                    
+                    features = []
+                    
+                    def hook_fn(module, input, output):
+                        features.append(output)
+                        
+                    hooks = []
+                    
+                    hooks.append(model.avgpool.register_forward_hook(hook_fn))
+                    
+                    with torch.no_grad():
+                        output = model(img_ret)
+                    
+                    f = features[0].flatten(1) # (batch_size, feature_dim)
+                    
+                    ret_embs.append(f)
+                    labs.append(lab_ret)
+                    
+                    features.clear()
+                    for hook in hooks:
+                        hook.remove()
 
-    # compute distribs from embeddings
-    distribs=[]
-    cov_matrix_inv =[]
-    for i in range(args.num_classes):
-        if type(args.class_to_replace) is list:
-            if i not in args.class_to_replace:
-                samples = tuckey_transf(ret_embs[labs==i])
-                distribs.append(samples.mean(0))
-                cov = torch.cov(samples.T)
-                cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
-                cov_shrinked = normalize_cov(cov_shrinked).cpu()
-                cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
+                SCAR.ret_embs = torch.cat(ret_embs)
+                SCAR.labs = torch.cat(labs)
+                
+                # save embeddings and labels
+                torch.save({'ret_embs': SCAR.ret_embs, 'labs': SCAR.labs}, embeddings_path)
 
-    distribs = torch.stack(distribs)
-    cov_matrix_inv = torch.stack(cov_matrix_inv)
+    ret_embs = SCAR.ret_embs
+    labs = SCAR.labs
+
+    # load distributions and inverse covariance matrices if they exist
+    if os.path.exists(distribs_path):
+        saved_data = torch.load(distribs_path)
+        SCAR.distribs = saved_data['distribs']
+        SCAR.cov_matrix_inv = saved_data['cov_matrix_inv']
+    else:
+        if not hasattr(SCAR, 'distribs') or not hasattr(SCAR, 'cov_matrix_inv'):
+            distribs = []
+            cov_matrix_inv = []
+            for i in tqdm(range(args.num_classes)):
+                if type(args.class_to_replace) is list:
+                    if i not in args.class_to_replace:
+                        samples = tuckey_transf(SCAR.ret_embs[SCAR.labs==i])
+                        distribs.append(samples.mean(0))
+                        cov = torch.cov(samples.T)
+                        cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
+                        cov_shrinked = normalize_cov(cov_shrinked)
+                        cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked).cpu())
+
+            SCAR.distribs = torch.stack(distribs)
+            SCAR.cov_matrix_inv = torch.stack(cov_matrix_inv)
+            
+            # save distributions and inverse covariance matrices
+            torch.save({'distribs': SCAR.distribs, 'cov_matrix_inv': SCAR.cov_matrix_inv}, distribs_path)
+
+    distribs = SCAR.distribs
+    cov_matrix_inv = SCAR.cov_matrix_inv
     
     # unlearn_lr = 5e-4, weight_decay = 0
 
-    init = True
+    SCAR.init = True
     flag_exit = False
     all_closest_class = []
-    
-    
-    forget_loader = data_loaders["forget"]
-    retain_loader = data_loaders["retain"]
-    distill_loader = retain_loader
-    losses = utils.AverageMeter()
-    top1 = utils.AverageMeter()
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -172,8 +193,9 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     start = time.time()
 
+    print("Unlearning started")
     for n_batch, (img_fgt, lab_fgt) in enumerate(forget_loader):
-        for n_batch_ret, all_batch in enumerate(retain_loader):
+        for n_batch_ret, all_batch in enumerate(tqdm(retain_loader)):
             img_ret, lab_ret = all_batch
             
             img_ret, lab_ret,img_fgt, lab_fgt = img_ret.to(device), lab_ret.to(device),img_fgt.to(device), lab_fgt.to(device)
@@ -199,11 +221,12 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 hook.remove()
 
             # compute Mahalanobis distance between embeddings and cluster
-            dists = mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T  
+            dists = mahalanobis_dist(embs_fgt, lab_fgt, distribs, cov_matrix_inv, device).T  
 
-            if init and n_batch_ret == 0:
+            if SCAR.init and n_batch_ret == 0:
                 closest_class = torch.argsort(dists, dim=1)
                 tmp = closest_class[:, 0]
+                lab_fgt = lab_fgt.to("cpu")
                 closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
                 all_closest_class.append(closest_class)
                 closest_class = all_closest_class[-1]
@@ -214,45 +237,33 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
             loss_fgt = torch.mean(dists) * 1
 
+            outputs_ret = model(img_ret)
+            
             with torch.no_grad():
                 outputs_original = original_model(img_ret)
-                outputs_ret = model(img_ret)
-                label_out = torch.argmax(outputs_original,dim=1)
-                outputs_original = outputs_original[label_out!=args.class_to_replace[0],:]
+                label_out = torch.argmax(outputs_original, dim=1)
+                outputs_original = outputs_original[label_out != args.class_to_replace[0], :]
                 outputs_original[:,torch.tensor(args.class_to_replace, dtype=torch.int64)] = torch.min(outputs_original)
                 
-                outputs_ret = outputs_ret[label_out!=args.class_to_replace[0],:]
+            outputs_ret = outputs_ret[label_out != args.class_to_replace[0], :]
             
             temperature = 1
             
             loss_ret = distill(outputs_ret, outputs_original / temperature) * 5
-            loss = loss_ret+loss_fgt
-            
-            if n_batch_ret > 900:
-                del loss,loss_ret,loss_fgt, embs_fgt,dists
+            loss = loss_ret + loss_fgt
+
+            if n_batch_ret > 2000:  # have to fix
+                del loss, loss_ret, loss_fgt, embs_fgt, dists
                 break
             
             loss.backward()
             optimizer.step()
 
-            with torch.no_grad():
-                curr_acc = accuracy(model, forget_loader)
-                if curr_acc < 0.01 and epoch > 1:
-                    flag_exit = True
-
             if flag_exit:
                 break
+        if n_batch > 1:
+            break
         if flag_exit:
             break
 
-        # evaluate accuracy on forget set every batch
-        with torch.no_grad():
-            model.eval()
-            curr_acc = accuracy(model, forget_loader)
-            if curr_acc < 0.01 and epoch > 1:
-                flag_exit = True
-
-        if flag_exit:
-            break
-
-        init = False
+    SCAR.init = False
