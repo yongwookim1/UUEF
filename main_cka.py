@@ -187,7 +187,7 @@ def main():
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
     full_dataset = OfficeHomeDataset(args.office_home_dataset_path)
-    data_loader = DataLoader(full_dataset, batch_size=1024, shuffle=False, num_workers=4)
+    data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
 
     model = load_model(args.model_path, device).to(device)
     retrained_model = load_model(args.retrained_model_path, device).to(device)
@@ -195,6 +195,7 @@ def main():
     # add mode selection based on args if needed
     mode = 'all'  # or 'avgpool'
     results = evaluate_cka(model, retrained_model, data_loader, device, mode=mode)
+    print(results)
 
 
 if __name__ == "__main__":

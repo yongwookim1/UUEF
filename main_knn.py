@@ -57,7 +57,7 @@ def load_model(model_path: str, device) -> torch.nn.Module:
         k.replace("module.", ""): v for k, v in checkpoint.items()
         if not k.startswith('normalize.')
     }
-    
+    state_dict = {k: v for k, v in state_dict.items() if not (k.startswith('normalize.'))}
     model.load_state_dict(state_dict, strict=True)
     model = torch.nn.Sequential(*list(model.children())[:-1])
     return model.to(device)
@@ -154,9 +154,7 @@ def main():
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
-    model_paths = [
-        args.retrained_model_path
-    ]
+    model_paths = [args.model_path]
     model = load_model(model_paths[0], device)
     
     train_features, train_labels = extract_features(model, train_loader, device)
