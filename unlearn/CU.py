@@ -15,6 +15,11 @@ def CU(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
     
+    retain_loader = DataLoader(retain_loader.dataset,
+                            batch_size=args.batch_size,
+                            shuffle=True,
+                            num_workers=4)
+    
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
 
