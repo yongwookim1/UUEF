@@ -14,6 +14,7 @@ from trainer.val import validate
 from pruner import extract_mask, prune_model_custom, remove_prune
 import pruner
 
+
 def plot_training_curve(training_result, save_dir, prefix):
     # plot training curve
     for name, result in training_result.items():
