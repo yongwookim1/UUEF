@@ -16,6 +16,8 @@ from .AKD_IL import AKD_IL
 from .AKD_AL import AKD_AL
 from .RKD import RKD
 from .RKD_IL import RKD_IL
+from .GA_CKA_SPKD import GA_CKA_SPKD
+from .GA_CKA import GA_CKA
 from .SCRUB import SCRUB
 from .SCAR import SCAR
 from .GA_noise import GA_noise
@@ -103,6 +105,10 @@ def get_unlearn_method(name):
         return RKD
     elif name == "RKD_IL":
         return RKD_IL
+    elif name == "GA_CKA_SPKD":
+        return GA_CKA_SPKD
+    elif name == "GA_CKA":
+        return GA_CKA
     elif name == "SCRUB":
         return SCRUB
     elif name == "SCAR":

@@ -113,9 +113,13 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 )
             )
 
-            train_acc = unlearn_iter_func(
+            results = unlearn_iter_func(
                 data_loaders, model, criterion, optimizer, epoch, args, mask, **kwargs
             )
+            if results is tuple:
+                train_acc, unlearned_model_features = results
+            else:
+                train_acc = results
             scheduler.step()
 
             print("one epoch duration:{}".format(time.time() - start_time))
@@ -129,48 +133,67 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 
                 device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
                 
-                # evaluate standard accuracy
-                if args.unlearn != "SCRUB":
+                # evaluate
+                forget_acc_list = ["GA", "RL_imagenet"]
+                retain_acc_list = ["SPKD", "SPKD_aug", "RKD", "AKD", "GA_CKA", "GA_CKA_SPKD", "FT"]
+                if args.unlearn != "SCRUB" or epoch % 10 == 0:
                     accuracy = {}
-                    for name, loader in data_loaders.items():
-                        print(f"Validating {name} loader")
-                        val_acc = validate(loader, model, criterion, args)
-                        accuracy[name] = val_acc
-                        print(f"{name} acc: {val_acc}")
+                    if args.unlearn in retain_acc_list:
+                        accuracy["retain"] = train_acc
+                        for name, loader in data_loaders.items():
+                            if name != "retain":
+                                print(f"Validating {name} loader")
+                                val_acc = validate(loader, model, criterion, args)
+                                accuracy[name] = val_acc
+                                print(f"{name} acc: {val_acc}")
+                    elif args.unlearn in forget_acc_list:
+                        accuracy["forget"] = train_acc
+                        for name, loader in data_loaders.items():
+                            if name != "forget":
+                                print(f"Validating {name} loader")
+                                val_acc = validate(loader, model, criterion, args)
+                                accuracy[name] = val_acc
+                                print(f"{name} acc: {val_acc}")
+                    else:
+                        for name, loader in data_loaders.items():
+                            print(f"Validating {name} loader")
+                            val_acc = validate(loader, model, criterion, args)
+                            accuracy[name] = val_acc
+                            print(f"{name} acc: {val_acc}")
                     
-                    # evaluate knn on office-home dataset
                     if args.evaluate_knn:
                         print(f"Validating kNN on Office-Home")
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                         unlearned_model.to(device)
-                        office_home_knn = utils.evaluate_knn(unlearned_model, args)
-                        accuracy["office_home_knn"] = float(office_home_knn*100)
+                        accuracy["office_home_knn"] = float(utils.evaluate_knn(unlearned_model, args)*100)
                         print(f"office_home_knn: {accuracy['office_home_knn']}")
                     
-                    # evaluate cka on office-home dataset
                     if args.evaluate_cka:
                         print(f"Validating CKA between retrained model and current model on Office-Home dataset")
-                        retrained_model_path = args.retrained_model_path
-                        retrained_model = utils.load_model(retrained_model_path, device)
-                        unleanred_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
+                        retrained_model = utils.load_model(args.retrained_model_path, device)
+                        unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                         retrained_model.to(device)
-                        unleanred_model.to(device)
+                        unlearned_model.to(device)
                         
-                        office_home_dataset_path = args.office_home_dataset_path
-                        full_dataset = OfficeHomeDataset(office_home_dataset_path)
-                        data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
+                        data_loader = DataLoader(
+                            OfficeHomeDataset(args.office_home_dataset_path), 
+                            batch_size=512, shuffle=False, num_workers=4
+                        )
                         
-                        mode = "avgpool"
+                        office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, data_loader, device, mode="avgpool")
                         
-                        cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device, mode=mode)
+                        val_retain_data_loader = data_loaders["val_retain"]
+                        val_retain_office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, val_retain_data_loader, device, mode="avgpool")
                         
-                        if mode == "avgpool":
-                            accuracy["office_home_cka"] = float(cka['cka']*100)
-                            print(f"office_home_cka: {accuracy['office_home_cka']}")
-                        else:
-                            for layer, results in cka.items():
-                                accuracy[f"office_home_cka_{layer}"] = float(results['cka']*100)
-                                print(f"office_home_cka_{layer}: {accuracy[f'office_home_cka_{layer}']}")
+                        val_forget_data_loader = data_loaders["val_forget"]
+                        val_forget_office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, val_forget_data_loader, device, mode="avgpool")
+                        
+                        accuracy["office_home_cka"] = float(office_home_cka['cka']*100)
+                        accuracy["val_retain_office_home_cka"] = float(val_retain_office_home_cka['cka']*100)
+                        accuracy["val_forget_office_home_cka"] = float(val_forget_office_home_cka['cka']*100)
+                        print(f"office_home_cka: {accuracy['office_home_cka']}")
+                        print(f"val_retain_office_home_cka: {accuracy['val_retain_office_home_cka']}")
+                        print(f"val_forget_office_home_cka: {accuracy['val_forget_office_home_cka']}")
                     
                     if args.use_wandb:
                         metrics = {
@@ -183,75 +206,13 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         
                         if args.evaluate_knn:
                             metrics["office_home_knn"] = accuracy["office_home_knn"]
-                        
                         if args.evaluate_cka:
-                            for key in accuracy:
-                                if key.startswith("office_home_cka"):
-                                    metrics[key] = accuracy[key]
+                            metrics["office_home_cka"] = accuracy["office_home_cka"]
+                            metrics["val_retain_office_home_cka"] = accuracy["val_retain_office_home_cka"]
+                            metrics["val_forget_office_home_cka"] = accuracy["val_forget_office_home_cka"]
                         
                         wandb.log(metrics)
-                elif args.unlearn == "SCRUB":
-                    if epoch % 10 == 0:
-                        accuracy = {}
-                        for name, loader in data_loaders.items():
-                            print(f"Validating {name} loader")
-                            val_acc = validate(loader, model, criterion, args)
-                            accuracy[name] = val_acc
-                            print(f"{name} acc: {val_acc}")
-                        
-                        # evaluate knn on office-home dataset
-                        if args.evaluate_knn:
-                            print(f"Validating kNN on Office-Home")
-                            unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
-                            unlearned_model.to(device)
-                            office_home_knn = utils.evaluate_knn(unlearned_model, args)
-                            accuracy["office_home_knn"] = float(office_home_knn*100)
-                            print(f"office_home_knn: {accuracy['office_home_knn']}")
-                        
-                        # evaluate cka on office-home dataset
-                        if args.evaluate_cka:
-                            print(f"Validating CKA between retrained model and current model on Office-Home dataset")
-                            retrained_model_path = args.retrained_model_path
-                            retrained_model = utils.load_model(retrained_model_path, device)
-                            unleanred_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
-                            retrained_model.to(device)
-                            unleanred_model.to(device)
-                            
-                            office_home_dataset_path = args.office_home_dataset_path
-                            full_dataset = OfficeHomeDataset(office_home_dataset_path)
-                            data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
-                            
-                            mode = "avgpool"
-                            
-                            cka = utils.evaluate_cka(retrained_model, unleanred_model, data_loader, device, mode=mode)
-                            
-                            if mode == "avgpool":
-                                accuracy["office_home_cka"] = float(cka['cka']*100)
-                                print(f"office_home_cka: {accuracy['office_home_cka']}")
-                            else:
-                                for layer, results in cka.items():
-                                    accuracy[f"office_home_cka_{layer}"] = float(results['cka']*100)
-                                    print(f"office_home_cka_{layer}: {accuracy[f'office_home_cka_{layer}']}")
-                        
-                        if args.use_wandb:
-                            metrics = {
-                                "epoch": epoch,
-                                f"{args.dataset}_retain_acc": accuracy["retain"],
-                                f"{args.dataset}_forget_acc": accuracy["forget"],
-                                f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
-                                f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
-                            }
-                            
-                            if args.evaluate_knn:
-                                metrics["office_home_knn"] = accuracy["office_home_knn"]
-                            
-                            if args.evaluate_cka:
-                                for key in accuracy:
-                                    if key.startswith("office_home_cka"):
-                                        metrics[key] = accuracy[key]
-                            
-                            wandb.log(metrics)
-                        
+                    
                     print(f"saved results in {save_dir}")
 
     return _wrapped
