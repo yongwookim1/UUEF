@@ -114,13 +114,10 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 )
             )
 
-            results = unlearn_iter_func(
+            train_acc = unlearn_iter_func(
                 data_loaders, model, criterion, optimizer, epoch, args, mask, **kwargs
             )
-            if results is tuple:
-                train_acc, unlearned_model_features = results
-            else:
-                train_acc = results
+
             scheduler.step()
 
             print("one epoch duration:{}".format(time.time() - start_time))
@@ -170,7 +167,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         print(f"office_home_knn: {accuracy['office_home_knn']}")
                     
                     if args.evaluate_cka:
-                        print(f"Validating CKA between retrained model and current model on Office-Home dataset")
+                        print(f"Validating CKA between retrained model and current model")
                         retrained_model = utils.load_model(args.retrained_model_path, device)
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                         retrained_model.to(device)
@@ -180,21 +177,30 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                             OfficeHomeDataset(args.office_home_dataset_path), 
                             batch_size=512, shuffle=False, num_workers=4
                         )
+                        office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode="avgpool")
                         
-                        office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, data_loader, device, mode="avgpool")
+                        retain_data_loader = data_loaders["retain"]
+                        forget_data_loader = data_loaders["forget"]
+                        
+                        Dr_cka = utils.evaluate_cka(unlearned_model, retrained_model, retain_data_loader, device, mode="avgpool")
+                        Df_cka = utils.evaluate_cka(unlearned_model, retrained_model, forget_data_loader, device, mode="avgpool")
                         
                         val_retain_data_loader = data_loaders["val_retain"]
-                        val_retain_office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, val_retain_data_loader, device, mode="avgpool")
-                        
                         val_forget_data_loader = data_loaders["val_forget"]
-                        val_forget_office_home_cka = utils.evaluate_cka(retrained_model, unlearned_model, val_forget_data_loader, device, mode="avgpool")
+                        
+                        val_retain_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_retain_data_loader, device, mode="avgpool")
+                        val_forget_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_forget_data_loader, device, mode="avgpool")
                         
                         accuracy["office_home_cka"] = float(office_home_cka['cka']*100)
-                        accuracy["val_retain_office_home_cka"] = float(val_retain_office_home_cka['cka']*100)
-                        accuracy["val_forget_office_home_cka"] = float(val_forget_office_home_cka['cka']*100)
+                        accuracy["Dr_cka"] = float(Dr_cka['cka']*100)
+                        accuracy["Df_cka"] = float(Df_cka['cka']*100)
+                        accuracy["val_retain_cka"] = float(val_retain_cka['cka']*100)
+                        accuracy["val_forget_cka"] = float(val_forget_cka['cka']*100)
                         print(f"office_home_cka: {accuracy['office_home_cka']}")
-                        print(f"val_retain_office_home_cka: {accuracy['val_retain_office_home_cka']}")
-                        print(f"val_forget_office_home_cka: {accuracy['val_forget_office_home_cka']}")
+                        print(f"Dr_cka: {accuracy['Dr_cka']}")
+                        print(f"Df_cka: {accuracy['Df_cka']}")
+                        print(f"val_retain_cka: {accuracy['val_retain_cka']}")
+                        print(f"val_forget_cka: {accuracy['val_forget_cka']}")
                     
                     if args.use_wandb:
                         metrics = {
@@ -209,8 +215,10 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                             metrics["office_home_knn"] = accuracy["office_home_knn"]
                         if args.evaluate_cka:
                             metrics["office_home_cka"] = accuracy["office_home_cka"]
-                            metrics["val_retain_office_home_cka"] = accuracy["val_retain_office_home_cka"]
-                            metrics["val_forget_office_home_cka"] = accuracy["val_forget_office_home_cka"]
+                            metrics["Dr_cka"] = accuracy["Dr_cka"]
+                            metrics["Df_cka"] = accuracy["Df_cka"]
+                            metrics["val_retain_cka"] = accuracy["val_retain_cka"]
+                            metrics["val_forget_cka"] = accuracy["val_forget_cka"]
                         
                         wandb.log(metrics)
                     

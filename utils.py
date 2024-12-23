@@ -81,7 +81,7 @@ class FeatureExtractor:
         self.features = []
 
 
-def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
+def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='all'):
     """
     compute CKA similarity between two models
     
@@ -92,11 +92,11 @@ def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
         device: torch device to use
         mode: 'all' for all layers or 'avgpool' for only avgpool layer
     """
-    model.eval()
+    unlearned_model.eval()
     retrained_model.eval()
 
     # feature extractors
-    original_extractor = FeatureExtractor()
+    unlearned_extractor = FeatureExtractor()
     retrained_extractor = FeatureExtractor()
     cuda_cka = CudaCKA(device)
 
@@ -114,7 +114,7 @@ def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
 
         if mode == 'all':
             hooks = [
-                getattr(model, layer).register_forward_hook(original_extractor.hook_fn)
+                getattr(unlearned_model, layer).register_forward_hook(unlearned_extractor.hook_fn)
                 for layer in layers
             ] + [
                 getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn)
@@ -122,22 +122,22 @@ def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
             ]
         else:
             hooks = [
-                model.avgpool.register_forward_hook(original_extractor.hook_fn),
+                unlearned_model.avgpool.register_forward_hook(unlearned_extractor.hook_fn),
                 retrained_model.avgpool.register_forward_hook(retrained_extractor.hook_fn)
             ]
 
         with torch.no_grad():
-            model(img)
+            unlearned_model(img)
             retrained_model(img)
 
             if mode == 'all':
                 for i in range(len(layers)):
-                    f_o = original_extractor.features[i].view(original_extractor.features[i].size(0), -1)
+                    f_o = unlearned_extractor.features[i].view(unlearned_extractor.features[i].size(0), -1)
                     f_r = retrained_extractor.features[i].view(retrained_extractor.features[i].size(0), -1)
                     cka_result[f"linear_cka{i}"] += cuda_cka.linear_CKA(f_o, f_r)
                     cka_result[f"linear_check{i}"] += cuda_cka.linear_CKA(f_o, f_o)
             else:
-                f_o = original_extractor.features[0].view(original_extractor.features[0].size(0), -1)
+                f_o = unlearned_extractor.features[0].view(unlearned_extractor.features[0].size(0), -1)
                 f_r = retrained_extractor.features[0].view(retrained_extractor.features[0].size(0), -1)
                 linear_cka += cuda_cka.linear_CKA(f_o, f_r)
                 kernel_cka += cuda_cka.kernel_CKA(f_o, f_r)
@@ -146,7 +146,7 @@ def evaluate_cka(model, retrained_model, data_loader, device, mode='all'):
 
         for hook in hooks:
             hook.remove()
-        original_extractor.clear()
+        unlearned_extractor.clear()
         retrained_extractor.clear()
 
     n = len(data_loader)
