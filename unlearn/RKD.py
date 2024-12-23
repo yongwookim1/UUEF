@@ -118,6 +118,8 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
         # restore phase with RKD
         print("Restore phase")
+        losses = utils.AverageMeter()
+        top1 = utils.AverageMeter()
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
@@ -166,7 +168,6 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             ce_loss = criterion(output, target)
             # combine losses with weights
             loss = 10 * distance_loss + 10 * angle_loss + 10 * ce_loss
-            loss = 10 * distance_loss + 10 * angle_loss
 
             optimizer.zero_grad()
             loss.backward()

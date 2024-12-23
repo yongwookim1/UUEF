@@ -81,6 +81,8 @@ def AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 start = time.time()
         # restore phase
         print("Restore phase")
+        losses = utils.AverageMeter()
+        top1 = utils.AverageMeter()
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
