@@ -13,9 +13,12 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, Subset
-from torchvision import transforms
+import torchvision
+from torchvision import transforms, datasets
 from torchvision.datasets import CIFAR10, CIFAR100, SVHN, ImageFolder
 from tqdm import tqdm
+import tarfile
+import zipfile
 
 
 def cifar10_dataloaders_no_val(
@@ -643,6 +646,158 @@ def cifar10_dataloaders(
     )
 
     return train_loader, val_loader, test_loader
+
+
+def office_home_dataloaders(
+    batch_size=512,
+    data_dir="/home/dataset/OfficeHomeDataset_10072016/Real World",
+    num_workers=4,
+):
+    class OfficeHomeDataset(Dataset):
+        def __init__(self, image_folder, transform=None):
+            self.image_folder = image_folder
+            self.images = []
+            self.labels = []
+            self.transform = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+
+            self.classes = sorted(os.listdir(image_folder))
+            for label, cls in enumerate(self.classes):
+                cls_folder = os.path.join(image_folder, cls)
+                if os.path.isdir(cls_folder):
+                    for img_name in os.listdir(cls_folder):
+                        img_path = os.path.join(cls_folder, img_name)
+                        if img_path.endswith('.jpg') or img_path.endswith('.png'):
+                            self.images.append(img_path)
+                            self.labels.append(label)
+
+        def __len__(self):
+            return len(self.images)
+
+        def __getitem__(self, idx):
+            img_path = self.images[idx]
+            image = Image.open(img_path).convert('RGB')
+            label = self.labels[idx]
+
+            if self.transform:
+                image = self.transform(image)
+
+            return image, label
+    
+    data_loader = DataLoader(OfficeHomeDataset(data_dir), batch_size=512, shuffle=False, num_workers=4)
+    return data_loader
+
+
+def cub_dataloaders(
+    batch_size=128,
+    data_dir="/home/dataset/CUB/CUB_200_2011/images",
+    num_workers=4,
+):
+    # general Transforms
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225])
+    ])
+
+    cub_dataset = datasets.ImageFolder(root=data_dir, transform=transform)
+    data_loader = DataLoader(cub_dataset, batch_size=512, shuffle=False, num_workers=4)
+    return data_loader
+
+
+def domainnet126_dataloaders(
+    batch_size=128,
+    data_dir="/home/dataset/domainnet",
+    num_workers=4,
+    domain="clipart",
+):    
+    class DomainNet126(Dataset):
+        def __init__(self, root, domain, train=True, transform=None, from_file=False):
+            
+            if not from_file:
+                data = []
+                labels = []
+
+                f = open(os.path.join(root,domain+"_list.txt"), "r")
+                lines = f.readlines()
+                lines = [l.split(" ") for l in lines]
+                lines = np.array(lines)
+
+                files = lines[:-1,0]
+                files = [os.path.join(root, sfile) for sfile in files]
+
+                classes = lines[:-1,1]
+                classes = [int(c[:-1]) for c in classes]
+
+                data.extend(files)
+                labels.extend(classes)
+
+                self.data = np.array(data)
+                self.labels = np.array(labels)
+                self.transform = transform
+
+            else:
+                data = np.load(os.path.join(root, domain+"_imgs.npy"))
+                labels = np.load(os.path.join(root, domain+"_labels.npy"))
+            
+                np.random.seed(42)
+                idx = np.random.permutation(len(data))
+
+                self.data = np.array(data)[idx]
+                self.labels = np.array(labels)[idx]
+
+                test_perc = 20
+                
+                test_len = len(self.data)*test_perc//100                   
+                
+                if train:
+                    self.data = self.data[test_len:]
+                    self.labels = self.labels[test_len:]
+                else:
+                    self.data = self.data[:test_len]
+                    self.labels = self.labels[:test_len]
+
+
+        def __len__(self):
+            return len(self.data)
+
+
+        def __getitem__(self, index):
+            """
+            Args:
+                index (int): Index
+
+            Returns:
+                tuple: (image, target) where target is index of the target class.
+            """
+            img, target = self.data[index], self.labels[index]          
+
+            # doing this so that it is consistent with all other datasets
+            # to return a PIL Image
+            img = Image.open(img)
+            
+            if self.transform is not None:
+                img = self.transform(img)
+
+            return img, target
+
+    
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225])
+    ])
+    
+    
+    dataset = DomainNet126(root=data_dir, domain=domain, train=True, transform=transform, from_file=False)
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    return data_loader
 
 
 def replace_indexes(

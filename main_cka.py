@@ -13,42 +13,6 @@ import utils
 from CKA.CKA import CudaCKA
 
 
-class OfficeHomeDataset(Dataset):
-    def __init__(self, image_folder, transform=None):
-        self.image_folder = image_folder
-        self.images = []
-        self.labels = []
-        self.transform = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-
-        self.classes = sorted(os.listdir(image_folder))
-        for label, cls in enumerate(self.classes):
-            cls_folder = os.path.join(image_folder, cls)
-            if os.path.isdir(cls_folder):
-                for img_name in os.listdir(cls_folder):
-                    img_path = os.path.join(cls_folder, img_name)
-                    if img_path.endswith('.jpg') or img_path.endswith('.png'):
-                        self.images.append(img_path)
-                        self.labels.append(label)
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, idx):
-        img_path = self.images[idx]
-        image = Image.open(img_path).convert('RGB')
-        label = self.labels[idx]
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image, label
-
-
 def load_model(pretrained_model_path, device):
     print(f"\nLoading model: {pretrained_model_path}")
     model = models.resnet50(weights=None)
@@ -186,16 +150,20 @@ def main():
     utils.setup_seed(2)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
-    full_dataset = OfficeHomeDataset(args.office_home_dataset_path)
-    data_loader = DataLoader(full_dataset, batch_size=512, shuffle=False, num_workers=4)
-
+    office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
+    cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
+    domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
+    
     model = load_model(args.model_path, device).to(device)
     retrained_model = load_model(args.retrained_model_path, device).to(device)
 
     # add mode selection based on args if needed
-    mode = 'all'  # or 'avgpool'
-    results = evaluate_cka(model, retrained_model, data_loader, device, mode=mode)
-    print(results)
+    mode = 'avgpool'  # or 'avgpool'
+    office_home_results = evaluate_cka(model, retrained_model, office_home_data_loader, device, mode=mode)
+    cub_results = evaluate_cka(model, retrained_model, cub_data_loader, device, mode=mode)
+    domainnet126_clipart_results = evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device, mode=mode)
+
+    print(domainnet126_clipart_results)
 
 
 if __name__ == "__main__":
