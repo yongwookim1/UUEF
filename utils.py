@@ -460,8 +460,7 @@ def setup_model_dataset(args):
         )
 
     else:
-        raise ValueError("Dataset not supprot yet !")
-    # import pdb;pdb.set_trace()
+        raise ValueError("Dataset not support!")
 
     if args.imagenet_arch:
         model = model_dict[args.arch](num_classes=classes, imagenet=True)
