@@ -41,6 +41,7 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
         
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
+            original_target = target.clone()  # Store original target
             target = torch.randint(0, args.num_classes, target.shape).to(device)
             
             # compute output
@@ -58,8 +59,9 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
             optimizer.step()
             output = output_clean.float()
             loss = loss.float()
-            # measure accuracy and record loss
-            prec1 = utils.accuracy(output.data, target)[0]
+            
+            # measure accuracy with original targets
+            prec1 = utils.accuracy(output.data, original_target)[0]
 
             losses.update(loss.item(), image.size(0))
             top1.update(prec1.item(), image.size(0))
