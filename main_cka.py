@@ -163,7 +163,9 @@ def main():
     cub_results = evaluate_cka(model, retrained_model, cub_data_loader, device, mode=mode)
     domainnet126_clipart_results = evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device, mode=mode)
 
-    print(domainnet126_clipart_results)
+    print(f"Office-Home CKA: {office_home_results}")
+    print(f"CUB CKA: {cub_results}")
+    print(f"DomainNet-Clipart CKA: {domainnet126_clipart_results}")
 
 
 if __name__ == "__main__":
