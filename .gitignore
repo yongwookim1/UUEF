@@ -4,12 +4,10 @@
 /result
 **/*.txt
 !requirements.txt
-/txt
 /stats
-/CKA.pytorch
-cka.py
-CKApytorch
-cka_result
+/mask
+/plots
+/wandb
 
 # Created by https://www.toptal.com/developers/gitignore/api/git,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=git,python
