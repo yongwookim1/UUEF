@@ -24,7 +24,7 @@ def replace_loader_dataset(dataset, batch_size, seed=1, shuffle=True):
     )
 
 
-def save_gradient_ratio(data_loaders, model, criterion, args):
+def save_gradient_ratio(data_loaders, model, criterion, args, mode="GA"):
     optimizer = torch.optim.SGD(
         model.parameters(),
         args.unlearn_lr,
@@ -36,15 +36,23 @@ def save_gradient_ratio(data_loaders, model, criterion, args):
     forget_loader = data_loaders["forget"]
     model.eval()
 
+    device = (f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
     for name, param in model.named_parameters():
         gradients[name] = 0
 
     for i, data in enumerate(tqdm(forget_loader)):
         image, target = get_x_y_from_data_dict(data, device=args.gpu)
+        random_target = torch.randint(0, args.num_classes, target.shape).to(device)
 
         # compute output
-        output_clean = model(image)
-        loss = -criterion(output_clean, target)
+        if mode == "GA":
+            output_clean = model(image)
+            loss = -criterion(output_clean, target)
+
+        elif mode == "RL":
+            output_clean = model(image)
+            loss = criterion(output_clean, random_target)
 
         optimizer.zero_grad()
         loss.backward()
@@ -89,7 +97,7 @@ def save_gradient_ratio(data_loaders, model, criterion, args):
             hard_dict[key] = threshold_tensor
             start_index += num_elements
 
-        torch.save(hard_dict, os.path.join(args.save_dir, "with_{}.pt".format(i)))
+            torch.save(hard_dict, os.path.join(args.save_dir, f"with_{i}_{mode}.pt"))
 
 
 def main():
@@ -112,7 +120,8 @@ def main():
             model,
             retain_loader,
             forget_loader,
-            val_loader
+            val_retain_loader,
+            val_forget_loader
         ) = utils.setup_model_dataset(args)
     else:
         (
@@ -179,7 +188,7 @@ def main():
 
     if args.dataset == 'imagenet':
         unlearn_data_loaders = OrderedDict(
-            retain=retain_loader, forget=forget_loader, val=val_loader
+            retain=retain_loader, forget=forget_loader
         )
     else:
         unlearn_data_loaders = OrderedDict(
@@ -202,7 +211,7 @@ def main():
             
         model.load_state_dict(checkpoint, strict=True)
 
-    save_gradient_ratio(unlearn_data_loaders, model, criterion, args)
+    save_gradient_ratio(unlearn_data_loaders, model, criterion, args, mode="RL")
 
 
 if __name__ == "__main__":
