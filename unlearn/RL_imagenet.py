@@ -41,7 +41,7 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
         
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
-            original_target = target.clone()  # Store original target
+            original_target = target.clone()  # store original target
             target = torch.randint(0, args.num_classes, target.shape).to(device)
             
             # compute output
