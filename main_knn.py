@@ -17,11 +17,11 @@ import arg_parser
 
 class OfficeHomeDataset(Dataset):
     def __init__(self, image_folder: str, transform: Optional[transforms.Compose] = None):
-        self.image_folder = image_folder
+        self.image_folder = image_folder + "/" + "Real_World"
         self.transform = transform
         self.images: List[str] = []
         self.labels: List[int] = []
-        self.classes = sorted(os.listdir(image_folder))
+        self.classes = sorted(os.listdir(self.image_folder))
         
         self._load_dataset()
     
