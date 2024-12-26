@@ -153,19 +153,28 @@ def main():
     office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
     cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
     domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_painting_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_sketch_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
     
     model = load_model(args.model_path, device).to(device)
     retrained_model = load_model(args.retrained_model_path, device).to(device)
 
     # add mode selection based on args if needed
-    mode = 'avgpool'  # or 'avgpool'
+    mode = 'avgpool'
     office_home_results = evaluate_cka(model, retrained_model, office_home_data_loader, device, mode=mode)
     cub_results = evaluate_cka(model, retrained_model, cub_data_loader, device, mode=mode)
     domainnet126_clipart_results = evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device, mode=mode)
+    domainnet126_painting_results = evaluate_cka(model, retrained_model, domainnet126_painting_data_loader, device, mode=mode)
+    domainnet126_real_results = evaluate_cka(model, retrained_model, domainnet126_real_data_loader, device, mode=mode)
+    domainnet126_sketch_results = evaluate_cka(model, retrained_model, domainnet126_sketch_data_loader, device, mode=mode)
 
     print(f"Office-Home CKA: {office_home_results}")
     print(f"CUB CKA: {cub_results}")
-    print(f"DomainNet-Clipart CKA: {domainnet126_clipart_results}")
+    print(f"DomainNet-clipart CKA: {domainnet126_clipart_results}")
+    print(f"DomainNet-painting CKA: {domainnet126_painting_results}")
+    print(f"DomainNet-real CKA: {domainnet126_real_results}")
+    print(f"DomainNet-sketch CKA: {domainnet126_sketch_results}")
 
 
 if __name__ == "__main__":
