@@ -31,6 +31,9 @@ def GA(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
         device = (
             torch.device(f"cuda:{args.gpu}") if torch.cuda.is_available() else torch.device("cpu")
         )
+        if args.mask_path is not None :
+            mask = torch.load(args.mask_path, map_location=device)
+            print("mask on")
         for i, data in enumerate(train_loader):
             image, target = get_x_y_from_data_dict(data, device)
             if epoch < args.warmup:
