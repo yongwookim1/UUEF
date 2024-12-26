@@ -150,8 +150,16 @@ def main():
     utils.setup_seed(2)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
-    office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
+    # Office-Home
+    office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
+    office_home_art_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Art", batch_size=512, num_workers=4)
+    office_home_clipart_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Clipart", batch_size=512, num_workers=4)
+    office_home_product_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Product", batch_size=512, num_workers=4)
+
+    # CUB
     cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
+    
+    # DomainNet126
     domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
     domainnet126_painting_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
     domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
@@ -162,14 +170,22 @@ def main():
 
     # add mode selection based on args if needed
     mode = 'avgpool'
-    office_home_results = evaluate_cka(model, retrained_model, office_home_data_loader, device, mode=mode)
+    office_home_real_world_results = evaluate_cka(model, retrained_model, office_home_real_world_data_loader, device, mode=mode)
+    office_home_art_results = evaluate_cka(model, retrained_model, office_home_art_data_loader, device, mode=mode)
+    office_home_clipart_results = evaluate_cka(model, retrained_model, office_home_clipart_data_loader, device, mode=mode)
+    office_home_product_results = evaluate_cka(model, retrained_model, office_home_product_data_loader, device, mode=mode)
+    
     cub_results = evaluate_cka(model, retrained_model, cub_data_loader, device, mode=mode)
+    
     domainnet126_clipart_results = evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device, mode=mode)
     domainnet126_painting_results = evaluate_cka(model, retrained_model, domainnet126_painting_data_loader, device, mode=mode)
     domainnet126_real_results = evaluate_cka(model, retrained_model, domainnet126_real_data_loader, device, mode=mode)
     domainnet126_sketch_results = evaluate_cka(model, retrained_model, domainnet126_sketch_data_loader, device, mode=mode)
 
-    print(f"Office-Home CKA: {office_home_results}")
+    print(f"Office-Home Real World CKA: {office_home_real_world_results}")
+    print(f"Office-Home Art CKA: {office_home_art_results}")
+    print(f"Office-Home Clipart CKA: {office_home_clipart_results}")
+    print(f"Office-Home Product CKA: {office_home_product_results}")
     print(f"CUB CKA: {cub_results}")
     print(f"DomainNet-clipart CKA: {domainnet126_clipart_results}")
     print(f"DomainNet-painting CKA: {domainnet126_painting_results}")
