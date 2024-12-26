@@ -649,13 +649,14 @@ def cifar10_dataloaders(
 
 
 def office_home_dataloaders(
+    data_dir="/home/dataset/office-home/",
+    domain="Real_World",
     batch_size=512,
-    data_dir="/home/dataset/OfficeHomeDataset_10072016/Real World",
     num_workers=4,
 ):
     class OfficeHomeDataset(Dataset):
-        def __init__(self, image_folder, transform=None):
-            self.image_folder = image_folder
+        def __init__(self, image_folder, domain, transform=None):
+            self.image_folder = image_folder + "/" + domain
             self.images = []
             self.labels = []
             self.transform = transforms.Compose([
@@ -665,9 +666,9 @@ def office_home_dataloaders(
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
 
-            self.classes = sorted(os.listdir(image_folder))
+            self.classes = sorted(os.listdir(self.image_folder))
             for label, cls in enumerate(self.classes):
-                cls_folder = os.path.join(image_folder, cls)
+                cls_folder = os.path.join(self.image_folder, cls)
                 if os.path.isdir(cls_folder):
                     for img_name in os.listdir(cls_folder):
                         img_path = os.path.join(cls_folder, img_name)
@@ -688,7 +689,7 @@ def office_home_dataloaders(
 
             return image, label
     
-    data_loader = DataLoader(OfficeHomeDataset(data_dir), batch_size=512, shuffle=False, num_workers=4)
+    data_loader = DataLoader(OfficeHomeDataset(image_folder=data_dir, domain=domain), batch_size=512, shuffle=False, num_workers=4)
     return data_loader
 
 
