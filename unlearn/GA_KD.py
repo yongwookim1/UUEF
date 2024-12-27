@@ -113,4 +113,4 @@ def GA_KD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg, features
+    return top1.avg
