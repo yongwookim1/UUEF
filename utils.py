@@ -85,111 +85,190 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='al
     """
     compute CKA similarity between two models with feature reuse
     """
-    features_dir = os.path.join('features')
-    os.makedirs(features_dir, exist_ok=True)
-    
-    # define paths for feature files
-    features_path = os.path.join(features_dir, f'{data}_retrained_features.pt') if data else None
-    
-    unlearned_model.eval()
-    retrained_model.eval()
+    # initialize CKA computation
+    cuda_cka = CudaCKA(device)
+    layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc'] if mode == 'all' else ['avgpool']
+    cka_results = {layer: 0 for layer in layers}
 
-    # extract and save retrained model features if needed
-    if data and not os.path.exists(features_path):
-        print(f"Extracting and saving features for {data} dataset...")
+    # if we have pre-computed features for both models, use them directly
+    if (Dr_features or Df_features) and os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
+        saved_features = torch.load(os.path.join('features', f'{data}_retrained_features.pt'), map_location="cpu")
+        
+        for batch_idx in tqdm(range(len(data_loader))):
+            for i, layer in enumerate(layers):
+                # get unlearned features
+                f_u = (Dr_features[batch_idx][i] if Dr_features else Df_features[batch_idx][i]).to(device)
+                f_u = f_u.view(f_u.size(0), -1)
+
+                # get retrained features
+                f_r = saved_features[batch_idx][i].to(device)
+                f_r = f_r.view(f_r.size(0), -1)
+
+                # calculate CKA
+                cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
+
+                # clear GPU memory
+                del f_u, f_r
+                torch.cuda.empty_cache()
+
+        # average results
+        n = len(data_loader)
+        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+
+    elif (Dr_features or Df_features):
+        features_dir = os.path.join('features')
+        os.makedirs(features_dir, exist_ok=True)
+        
+        # define paths for feature files
+        features_path = os.path.join(features_dir, f'{data}_retrained_features.pt') if data else None
+        
+        retrained_model.eval()
         retrained_features = []
         retrained_extractor = FeatureExtractor()
         
-        layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc'] if mode == 'all' else ['avgpool']
-        
-        for batch in tqdm(data_loader):
-            img = batch[0].to(device)
+        for batch_idx, (img, _) in enumerate(tqdm(data_loader)):
+            img = img.to(device)
             
             # register hooks
-            hooks = [getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn) 
-                    for layer in layers]
-            
+            hooks = [getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn) for layer in layers]
+
             # extract features
             with torch.no_grad():
                 retrained_model(img)
-                batch_features = [f.clone().cpu() for f in retrained_extractor.features]
-                retrained_features.append(batch_features)
-            
+
+            batch_features = []
+            for i, layer in enumerate(layers):
+                # get unlearned features
+                if Dr_features:
+                    f_u = Dr_features[batch_idx][i].to(device)
+                elif Df_features:
+                    f_u = Df_features[batch_idx][i].to(device)
+                else:
+                    f_u = retrained_extractor.features[i].to(device)
+                f_u = f_u.view(f_u.size(0), -1)
+
+                # get retrained features
+                f_r = retrained_extractor.features[i].to(device)
+                batch_features.append(f_r.cpu())
+                f_r = f_r.view(f_r.size(0), -1)
+
+                # calculate CKA
+                cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
+
+                # clear GPU memory
+                del f_u, f_r
+                torch.cuda.empty_cache()
+
+            retrained_features.append(batch_features)
+
             # cleanup
             for hook in hooks:
                 hook.remove()
             retrained_extractor.clear()
+
+        # save features if path is provided
+        if features_path:
+            torch.save(retrained_features, features_path)
         
-        torch.save(retrained_features, features_path)
-        print(f"Features saved to {features_path}")
+        # average results
+        n = len(data_loader)
+        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
 
-    # load saved features once if they exist
-    saved_features = None
-    if data and os.path.exists(features_path):
-        print(f"Loading saved features from {features_path}")
-        saved_features = torch.load(features_path, map_location="cpu")
-
-    # initialize CKA computation
-    unlearned_extractor = FeatureExtractor()
-    retrained_extractor = FeatureExtractor()
-    cuda_cka = CudaCKA(device)
-    
-    layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc'] if mode == 'all' else ['avgpool']
-    cka_results = {layer: 0 for layer in layers}
-
-    # compute CKA
-    for batch_idx, (img, _) in enumerate(tqdm(data_loader)):
-        img = img.to(device)
+    elif os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
+        features_dir = os.path.join('features')
+        saved_features = torch.load(os.path.join(features_dir, f'{data}_retrained_features.pt'), map_location="cpu")
         
-        # register hooks
-        hooks = [getattr(unlearned_model, layer).register_forward_hook(unlearned_extractor.hook_fn) 
-                for layer in layers]
+        unlearned_model.eval()
+
+        print(f"Extracting saved features for {data} dataset...")
+        unlearned_extractor = FeatureExtractor()
         
-        if not (Dr_features or Df_features):
-            hooks.extend([getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn) 
-                         for layer in layers])
+        # compute CKA
+        for batch_idx, (img, _) in enumerate(tqdm(data_loader)):
+            img = img.to(device)
+            
+            # register hooks
+            hooks = [getattr(unlearned_model, layer).register_forward_hook(unlearned_extractor.hook_fn) for layer in layers]
 
-        # extract features
-        with torch.no_grad():
-            unlearned_model(img)
-            if not (Dr_features or Df_features):
-                retrained_model(img)
+            # extract features
+            with torch.no_grad():
+                unlearned_model(img)
 
-        # compute CKA for each layer
-        for i, layer in enumerate(layers):
-            # get unlearned features
-            if Dr_features:
-                f_u = Dr_features[batch_idx][i].to(device)
-            elif Df_features:
-                f_u = Df_features[batch_idx][i].to(device)
-            else:
+            # compute CKA for each layer
+            for i, layer in enumerate(layers):
+                # get unlearned features
                 f_u = unlearned_extractor.features[i].to(device)
-            f_u = f_u.view(f_u.size(0), -1)
+                f_u = f_u.view(f_u.size(0), -1)
 
-            # get retrained features
-            if saved_features is not None:
+                # get retrained features
                 f_r = saved_features[batch_idx][i].to(device)
-            else:
-                f_r = retrained_extractor.features[i].to(device)
-            f_r = f_r.view(f_r.size(0), -1)
+                f_r = f_r.view(f_r.size(0), -1)
 
-            # calculate CKA
-            cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
-
-            # clear GPU memory
-            del f_u, f_r
-            torch.cuda.empty_cache()
+                # calculate CKA
+                cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
+                
+                # clear GPU memory
+                del f_u, f_r
+                torch.cuda.empty_cache()
 
             # cleanup
             for hook in hooks:
                 hook.remove()
-        unlearned_extractor.clear()
-        retrained_extractor.clear()
+            unlearned_extractor.clear()
 
-    # average results
-    n = len(data_loader)
-    return {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        # average results
+        n = len(data_loader)
+        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+    else:
+        unlearned_model.eval()
+        retrained_model.eval()
+        
+        unlearned_extractor = FeatureExtractor()
+        retrained_extractor = FeatureExtractor()
+        retrained_features = []
+        
+        for batch_idx, (img, _) in enumerate(tqdm(data_loader)):
+            img = img.to(device)
+            
+            hooks = [
+                getattr(unlearned_model, layer).register_forward_hook(unlearned_extractor.hook_fn)
+                for layer in layers
+            ] + [
+                getattr(retrained_model, layer).register_forward_hook(retrained_extractor.hook_fn)
+                for layer in layers
+            ]
+            
+            with torch.no_grad():
+                unlearned_model(img)
+                retrained_model(img)
+            
+            batch_features = []
+            for i, layer in enumerate(layers):
+                f_u = unlearned_extractor.features[i].to(device)
+                f_u = f_u.view(f_u.size(0), -1)
+                f_r = retrained_extractor.features[i].to(device)
+                batch_features.append(f_r.cpu())
+                f_r = f_r.view(f_r.size(0), -1)
+                
+                cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
+                
+                del f_u, f_r
+                torch.cuda.empty_cache()
+            
+            retrained_features.append(batch_features)
+            
+            for hook in hooks:
+                hook.remove()
+            unlearned_extractor.clear()
+            retrained_extractor.clear()
 
+        n = len(data_loader)
+        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+            
 
 def load_model(pretrained_model_path, device):
     print(f"\nLoading model: {pretrained_model_path}")

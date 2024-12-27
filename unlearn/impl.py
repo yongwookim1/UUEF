@@ -9,7 +9,6 @@ import wandb
 from torch.utils.data import DataLoader
 
 import main_knn
-from main_cka import OfficeHomeDataset
 from trainer.val import validate
 from pruner import extract_mask, prune_model_custom, remove_prune
 import pruner
@@ -114,9 +113,16 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 )
             )
 
-            train_acc = unlearn_iter_func(
+            results = unlearn_iter_func(
                 data_loaders, model, criterion, optimizer, epoch, args, mask, **kwargs
             )
+            
+            # handle different return types from unlearn_iter_func
+            if isinstance(results, tuple):
+                train_acc, features = results
+            else:
+                train_acc = results
+                features = None
 
             scheduler.step()
 
@@ -132,8 +138,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
                 
                 # evaluate
-                forget_acc_list = ["GA", "RL_imagenet"]
-                retain_acc_list = ["SPKD", "SPKD_aug", "RKD", "AKD", "GA_CKA", "GA_CKA_SPKD", "FT"]
+                forget_acc_list = ["GA", "RL", "RL_imagenet"]
+                retain_acc_list = ["SPKD", "SPKD_aug", "RKD", "AKD", "FT", "SPKD_retrained", "GA_CKA"]
                 if args.unlearn != "SCRUB" or epoch % 10 == 0:
                     accuracy = {}
                     if args.unlearn in retain_acc_list:
@@ -162,7 +168,6 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     if args.evaluate_knn:
                         print(f"Validating kNN on Office-Home")
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
-                        unlearned_model.to(device)
                         accuracy["office_home_knn"] = float(utils.evaluate_knn(unlearned_model, args)*100)
                         print(f"office_home_knn: {accuracy['office_home_knn']}")
                     
@@ -170,20 +175,15 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         print(f"Validating CKA between retrained model and current model")
                         retrained_model = utils.load_model(args.retrained_model_path, device)
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
-                        retrained_model.to(device)
-                        unlearned_model.to(device)
                         
-                        data_loader = DataLoader(
-                            OfficeHomeDataset(args.office_home_dataset_path), 
-                            batch_size=512, shuffle=False, num_workers=4
-                        )
-                        office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode="avgpool")
+                        office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
+                        office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, office_home_data_loader, device, mode="avgpool")
                         
                         retain_data_loader = data_loaders["retain"]
                         forget_data_loader = data_loaders["forget"]
                         
-                        Dr_cka = utils.evaluate_cka(unlearned_model, retrained_model, retain_data_loader, device, mode="avgpool")
-                        Df_cka = utils.evaluate_cka(unlearned_model, retrained_model, forget_data_loader, device, mode="avgpool")
+                        # Dr_cka = utils.evaluate_cka(unlearned_model, retrained_model, retain_data_loader, device, mode="avgpool", Dr_features=None, data="Dr")
+                        # Df_cka = utils.evaluate_cka(unlearned_model, retrained_model, forget_data_loader, device, mode="avgpool", Df_features=None, data="Df")
                         
                         val_retain_data_loader = data_loaders["val_retain"]
                         val_forget_data_loader = data_loaders["val_forget"]
@@ -192,13 +192,13 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         val_forget_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_forget_data_loader, device, mode="avgpool")
                         
                         accuracy["office_home_cka"] = float(office_home_cka['cka']*100)
-                        accuracy["Dr_cka"] = float(Dr_cka['cka']*100)
-                        accuracy["Df_cka"] = float(Df_cka['cka']*100)
+                        # accuracy["Dr_cka"] = float(Dr_cka['cka']*100)
+                        # accuracy["Df_cka"] = float(Df_cka['cka']*100)
                         accuracy["val_retain_cka"] = float(val_retain_cka['cka']*100)
                         accuracy["val_forget_cka"] = float(val_forget_cka['cka']*100)
                         print(f"office_home_cka: {accuracy['office_home_cka']}")
-                        print(f"Dr_cka: {accuracy['Dr_cka']}")
-                        print(f"Df_cka: {accuracy['Df_cka']}")
+                        # print(f"Dr_cka: {accuracy['Dr_cka']}")
+                        # print(f"Df_cka: {accuracy['Df_cka']}")
                         print(f"val_retain_cka: {accuracy['val_retain_cka']}")
                         print(f"val_forget_cka: {accuracy['val_forget_cka']}")
                     
@@ -215,8 +215,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                             metrics["office_home_knn"] = accuracy["office_home_knn"]
                         if args.evaluate_cka:
                             metrics["office_home_cka"] = accuracy["office_home_cka"]
-                            metrics["Dr_cka"] = accuracy["Dr_cka"]
-                            metrics["Df_cka"] = accuracy["Df_cka"]
+                            # metrics["Dr_cka"] = accuracy["Dr_cka"]
+                            # metrics["Df_cka"] = accuracy["Df_cka"]
                             metrics["val_retain_cka"] = accuracy["val_retain_cka"]
                             metrics["val_forget_cka"] = accuracy["val_forget_cka"]
                         
