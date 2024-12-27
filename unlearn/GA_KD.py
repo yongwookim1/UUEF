@@ -13,15 +13,15 @@ from imagenet import get_x_y_from_data_dict
 
 
 @iterative_unlearn
-def GAwithKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
-    # Store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(GAwithKD, 'original_model'):
-        GAwithKD.original_model = copy.deepcopy(model)
-        GAwithKD.original_model.eval()
-        for param in GAwithKD.original_model.parameters():
+def GA_KD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+    # store initial model state at the beginning of unlearning (epoch 0)
+    if not hasattr(GA_KD, 'original_model'):
+        GA_KD.original_model = copy.deepcopy(model)
+        GA_KD.original_model.eval()
+        for param in GA_KD.original_model.parameters():
             param.requires_grad = False
     
-    original_model = GAwithKD.original_model
+    original_model = GA_KD.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
@@ -113,4 +113,4 @@ def GAwithKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg
+    return top1.avg, features
