@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 
 from .impl import iterative_unlearn
-import os   
+import os
 sys.path.append(".")
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.append(project_root)
@@ -61,6 +61,8 @@ def GA_CKA(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    features = []
+    
     model.train()
     start = time.time()
 
@@ -122,13 +124,14 @@ def GA_CKA(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             hook_u.remove()
             hook_o.remove()
 
+            features.append(features_u[0].cpu())
             f_u = features_u[0].view(features_u[0].size(0), -1)
             f_o = features_o[0].view(features_o[0].size(0), -1)
             cka = CudaCKA(device)
             cka_similarity = cka.linear_CKA(f_u, f_o)
             
             ce_loss = criterion(output, target)
-            loss = 10 * ce_loss + 10*(1 - cka_similarity)
+            loss = ce_loss + 100*(1 - cka_similarity)
 
             optimizer.zero_grad()
             loss.backward()
@@ -153,4 +156,4 @@ def GA_CKA(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 start = time.time()
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
-    return top1.avg
+    return top1.avg, features

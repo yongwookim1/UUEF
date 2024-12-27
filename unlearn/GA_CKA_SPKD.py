@@ -60,6 +60,8 @@ def GA_CKA_SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    features = []
+    
     model.train()
     start = time.time()
 
@@ -122,6 +124,7 @@ def GA_CKA_SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
             hook_o.remove()
 
             # Calculate CKA similarity
+            features.append(features_u[0].cpu())
             f_u = features_u[0].view(features_u[0].size(0), -1)
             f_o = features_o[0].view(features_o[0].size(0), -1)
             cka = CudaCKA(device)
@@ -142,7 +145,7 @@ def GA_CKA_SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
             
             ce_loss = criterion(output, target)
             # Combine all losses
-            loss = 10*ce_loss + 50*(1 - cka_similarity) + 10*spkd_loss
+            loss = 10 * ce_loss + 100*(1 - cka_similarity) + 10*spkd_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -167,4 +170,4 @@ def GA_CKA_SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
                 start = time.time()
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
-    return top1.avg 
+    return top1.avg, features

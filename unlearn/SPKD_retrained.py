@@ -27,6 +27,8 @@ def SPKD_retrained(data_loaders, model, criterion, optimizer, epoch, args, mask=
     retrained_model.to(device)
     retrained_model.eval()
 
+    features = utils.extract_features(retrained_model, layers, device)
+
     # switch mode
     model.train()
 
@@ -93,6 +95,7 @@ def SPKD_retrained(data_loaders, model, criterion, optimizer, epoch, args, mask=
             
             # compute similarity matrices
             f_s, f_t = features_s[0], features_t[0]
+            features.append(f_s.cpu())
             b = f_s.size(0)
             f_s_flat = f_s.view(b, -1)
             f_t_flat = f_t.view(b, -1)
@@ -142,4 +145,4 @@ def SPKD_retrained(data_loaders, model, criterion, optimizer, epoch, args, mask=
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg
+    return top1.avg, features

@@ -72,11 +72,13 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
-    distill_loader = forget_loader
+    distill_loader = retain_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
+    features = []
     
     # switch mode
     model.train()
@@ -144,6 +146,8 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 _ = original_model(image)
             
             f_s, f_t = features_s[0], features_t[0]
+            features.append(f_s.cpu())
+            
             f_s_flat = f_s.view(f_s.size(0), -1)
             f_t_flat = f_t.view(f_t.size(0), -1)
             
@@ -194,4 +198,4 @@ def RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
 
-    return top1.avg
+    return top1.avg, features
