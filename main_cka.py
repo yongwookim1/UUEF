@@ -191,7 +191,18 @@ def main():
     print(f"DomainNet-painting CKA: {domainnet126_painting_results}")
     print(f"DomainNet-real CKA: {domainnet126_real_results}")
     print(f"DomainNet-sketch CKA: {domainnet126_sketch_results}")
-
+    
+    return {
+        "office_home_real_world_cka": office_home_real_world_results,
+        "office_home_art_cka": office_home_art_results,
+        "office_home_clipart_cka": office_home_clipart_results,
+        "office_home_product_cka": office_home_product_results,
+        "cub_cka": cub_results,
+        "domainnet126_clipart_cka": domainnet126_clipart_results,
+        "domainnet126_painting_cka": domainnet126_painting_results,
+        "domainnet126_real_cka": domainnet126_real_results,
+        "domainnet126_sketch_cka": domainnet126_sketch_results,
+    }
 
 if __name__ == "__main__":
     main()
