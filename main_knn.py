@@ -16,51 +16,34 @@ import arg_parser
 
 
 class OfficeHomeDataset(Dataset):
-    def __init__(self, image_folder: str, transform: Optional[transforms.Compose] = None):
-        self.image_folder = image_folder + "/" + "Real_World"
+    def __init__(self, image_folder, domain, transform=None):
+        self.image_folder = image_folder + "/" + domain
+        self.images = []
+        self.labels = []
         self.transform = transform
-        self.images: List[str] = []
-        self.labels: List[int] = []
-        self.classes = sorted(os.listdir(self.image_folder))
-        
-        self._load_dataset()
-    
-    def _load_dataset(self) -> None:
-        for label, cls in enumerate(self.classes):
-            cls_folder = Path(self.image_folder) / cls
-            if cls_folder.is_dir():
-                for img_path in cls_folder.glob("*.[jp][pn][g]"):
-                    self.images.append(str(img_path))
-                    self.labels.append(label)
 
-    def __len__(self) -> int:
+        self.classes = sorted(os.listdir(self.image_folder))
+        for label, cls in enumerate(self.classes):
+            cls_folder = os.path.join(self.image_folder, cls)
+            if os.path.isdir(cls_folder):
+                for img_name in os.listdir(cls_folder):
+                    img_path = os.path.join(cls_folder, img_name)
+                    if img_path.endswith('.jpg') or img_path.endswith('.png'):
+                        self.images.append(img_path)
+                        self.labels.append(label)
+
+    def __len__(self):
         return len(self.images)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, idx):
         img_path = self.images[idx]
         image = Image.open(img_path).convert('RGB')
         label = self.labels[idx]
-        
+
         if self.transform:
             image = self.transform(image)
+
         return image, label
-
-
-def load_model(model_path: str, device) -> torch.nn.Module:
-    model = models.resnet50(weights=None)
-    checkpoint = torch.load(model_path, map_location=device)
-    
-    if "state_dict" in checkpoint:
-        checkpoint = checkpoint["state_dict"]
-        
-    state_dict = {
-        k.replace("module.", ""): v for k, v in checkpoint.items()
-        if not k.startswith('normalize.')
-    }
-    state_dict = {k: v for k, v in state_dict.items() if not (k.startswith('normalize.'))}
-    model.load_state_dict(state_dict, strict=True)
-    model = torch.nn.Sequential(*list(model.children())[:-1])
-    return model.to(device)
 
 
 @torch.no_grad()
@@ -87,7 +70,7 @@ def create_data_loaders(args):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     
-    dataset = OfficeHomeDataset(args.office_home_dataset_path, transform=transform)
+    dataset = OfficeHomeDataset(args.office_home_dataset_path, domain="Real_World", transform=transform)
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
     
@@ -155,7 +138,7 @@ def main():
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
     model_paths = [args.model_path]
-    model = load_model(model_paths[0], device)
+    model = utils.load_model(model_paths[0], device)
     
     train_features, train_labels = extract_features(model, train_loader, device)
     test_features, test_labels = extract_features(model, test_loader, device)
