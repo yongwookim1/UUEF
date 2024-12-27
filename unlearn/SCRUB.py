@@ -38,15 +38,15 @@ def SCRUB(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     start = time.time()
     
     # hyperparameters
-    max_steps = 100
-    min_steps = 100
+    max_steps = 200
+    min_steps = 200
     forget_batch_size = 256
     retain_batch_size = 256
     
     forget_loader = DataLoader(forget_loader.dataset,
                                batch_size=forget_batch_size,
                                shuffle=True,
-                               num_workers=2)
+                               num_workers=4)
     
     retain_loader = DataLoader(retain_loader.dataset,
                                batch_size=retain_batch_size,
