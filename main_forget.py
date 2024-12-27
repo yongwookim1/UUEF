@@ -195,15 +195,15 @@ def main():
         cka_results = main_cka.main()
         
         metrics = {
-            f"office_home_real_world_cka": cka_result["office_home_real_world_cka"],
-            f"office_home_art_cka": cka_result["office_home_art_cka"],
-            f"office_home_clipart_cka": cka_result["office_home_clipart_cka"],
-            f"office_home_product_cka": cka_result["office_home_product_cka"],
-            f"cub_cka": cka_result["cub_cka"],
-            f"domainnet126_clipart_cka": cka_result["domainnet126_clipart_cka"],
-            f"domainnet126_painting_cka": cka_result["domainnet126_painting_cka"],
-            f"domainnet126_real_cka": cka_result["domainnet126_real_cka"],
-            f"domainnet126_sketch_cka": cka_result["domainnet126_sketch_cka"],
+            f"office_home_real_world_cka": cka_results["office_home_real_world_cka"],
+            f"office_home_art_cka": cka_results["office_home_art_cka"],
+            f"office_home_clipart_cka": cka_results["office_home_clipart_cka"],
+            f"office_home_product_cka": cka_results["office_home_product_cka"],
+            f"cub_cka": cka_results["cub_cka"],
+            f"domainnet126_clipart_cka": cka_results["domainnet126_clipart_cka"],
+            f"domainnet126_painting_cka": cka_results["domainnet126_painting_cka"],
+            f"domainnet126_real_cka": cka_results["domainnet126_real_cka"],
+            f"domainnet126_sketch_cka": cka_results["domainnet126_sketch_cka"],
         }
         
         wandb.log(metrics)
