@@ -5,11 +5,11 @@ from .fisher import fisher,fisher_new
 from .retrain import retrain
 from .impl import load_unlearn_checkpoint, save_unlearn_checkpoint
 from .Wfisher import Wfisher
-from .baseline import GAwithKD
 from .SPKD import SPKD
 from .SPKD_IL import SPKD_IL
 from .SPKD_AL import SPKD_AL
 from .SPKD_aug import SPKD_aug
+from .SPKD_retrained import SPKD_retrained
 from .AKD import AKD
 from .AKD_aug import AKD_aug
 from .AKD_IL import AKD_IL
@@ -18,6 +18,7 @@ from .RKD import RKD
 from .RKD_IL import RKD_IL
 from .GA_CKA_SPKD import GA_CKA_SPKD
 from .GA_CKA import GA_CKA
+from .GA_KD import GA_KD
 from .SCRUB import SCRUB
 from .SCAR import SCAR
 from .GA_noise import GA_noise
@@ -81,10 +82,8 @@ def get_unlearn_method(name):
         return boundary_shrink
     elif name == "RL_proximal":
         return RL_proximal
-    elif name == "GAwithKD":
-        return GAwithKD
-    elif name == "GAwithKD_aug":
-        return GAwithKD_aug
+    elif name == "GA_KD":
+        return GA_KD
     elif name == "SPKD":
         return SPKD
     elif name == "SPKD_IL":
@@ -93,6 +92,8 @@ def get_unlearn_method(name):
         return SPKD_AL
     elif name == "SPKD_aug":
         return SPKD_aug
+    elif name == "SPKD_retrained":
+        return SPKD_retrained
     elif name == "AKD":
         return AKD
     elif name == "AKD_aug":
