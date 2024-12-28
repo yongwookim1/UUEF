@@ -27,8 +27,6 @@ def SPKD_retrained(data_loaders, model, criterion, optimizer, epoch, args, mask=
     retrained_model.to(device)
     retrained_model.eval()
 
-    features = utils.extract_features(retrained_model, layers, device)
-
     # switch mode
     model.train()
 
