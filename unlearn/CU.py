@@ -2,6 +2,7 @@ import sys
 import time
 
 import torch
+from torch.utils.data import DataLoader
 import utils
 
 from .impl import iterative_unlearn
