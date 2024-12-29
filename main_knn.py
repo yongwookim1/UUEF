@@ -182,6 +182,37 @@ def evaluate_office_home_knn(model, args):
     return knn_accuracy
 
 
+def evaluate_all_knn(model):
+    utils.setup_seed(2)
+    
+    args = arg_parser.parse_args()
+    
+    dataloaders = create_all_data_loaders(args)
+    
+    results = {}
+    for name, (train_loader, test_loader) in dataloaders.items():
+        print(f"Processing {name} loader")
+        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        
+        model = model.to(device)
+        
+        train_features, train_labels = extract_features(model, train_loader, device)
+        test_features, test_labels = extract_features(model, test_loader, device)
+        
+        knn_accuracy = evaluate_knn(
+            train_features,
+            train_labels,
+            test_features,
+            test_labels,
+            5,
+        )
+        results[name] = knn_accuracy
+        break
+    for name, accuracy in results.items():
+        print(f"{name}: {accuracy * 100:.2f}%")
+    return results
+
+
 def main():
     utils.setup_seed(2)
     
