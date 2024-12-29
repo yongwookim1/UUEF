@@ -164,15 +164,13 @@ def main():
         unlearn_method = unlearn.get_unlearn_method(args.unlearn)
         unlearn_method(unlearn_data_loaders, model, criterion, args)
         
-        unlearned_model_path = f"{args.save_dir}/{args.unlearn}/{args.unlearn_lr}/15/{args.unlearn}checkpoint.pth.tar"
-        model = utils.load_model(unlearned_model_path, device)
-        
         accuracy = {}
         for name, loader in unlearn_data_loaders.items():
             print(f"Validating {name} loader")
             val_acc = validate(loader, model, criterion, args)
             accuracy[name] = val_acc
             print(f"{name} acc: {val_acc}")
+        
         metrics = {
         "epoch": args.unlearn_epochs,
         f"{args.dataset}_retain_acc": accuracy["retain"],
@@ -180,7 +178,7 @@ def main():
         f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
         f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
         }
-        
+
         knn_results = main_knn.evaluate_all_knn(model)
         
         metrics = {
