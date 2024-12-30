@@ -17,7 +17,8 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
     original_targets = deepcopy(forget_dataset.dataset.targets)
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    if args.mask_path is not None :
+    
+    if args.mask_path is not None:
         mask = torch.load(args.mask_path, map_location=device)
         print("mask on")
     
@@ -51,7 +52,7 @@ def RL_imagenet(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
             optimizer.zero_grad()
             loss.backward()
             
-            if args.mask_path is not None:
+            if mask:
                 for name, param in model.named_parameters():
                     if param.grad is not None:
                         param.grad *= mask[name]
