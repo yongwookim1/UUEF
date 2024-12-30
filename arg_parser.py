@@ -68,7 +68,7 @@ def parse_args():
     parser.add_argument("--wandb_name", type=str, default=None, help="name of wandb")
     parser.add_argument("--evaluate_knn", action="store_true", help="evaluate knn during unlearning")
     parser.add_argument("--evaluate_cka", action="store_true", help="evaluate cka during unlearning")
-    parser.add_argument("--retrained_model_path", type=str, default="/home/kyw1654/unlearning/baseline/pretrained_model/retraincheckpoint100.pth.tar", help="the path of retrained model") # set your retrained model path
+    parser.add_argument("--retrained_model_path", type=str, default="./pretrained_model/retraincheckpoint100.pth.tar", help="the path of retrained model") # set your retrained model path
     parser.add_argument("--office_home_dataset_path", type=str, default="/home/dataset/office-home", help="the path of office-home dataset") # set your office-home dataset path
     parser.add_argument("--cub_dataset_path", type=str, default="/home/dataset/CUB/CUB_200_2011/images", help="the path of cub dataset") # set your cub dataset path
     parser.add_argument("--domainnet_dataset_path", type=str, default="/home/dataset/domainnet", help="the path of domainnet dataset") # set your domainnet dataset path
