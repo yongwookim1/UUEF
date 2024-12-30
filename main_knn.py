@@ -130,7 +130,7 @@ def create_all_data_loaders(args):
     dataset_names = ["imagenet_forget", "imagenet_retain","imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
     
     dataloaders = {}
-    for i, dataloader in enumerate([forget_loader, retain_loader, val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
+    for i, dataloader in enumerate([office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
         train_size = int(0.8 * len(dataloader.dataset))
         test_size = len(dataloader.dataset) - train_size
         
@@ -200,22 +200,24 @@ def main():
     
     results = {}
     for name, (train_loader, test_loader) in dataloaders.items():
-        print(f"Processing {name} loader")
-        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-        
-        model = utils.load_model(args.model_path, device)
-        
-        train_features, train_labels = extract_features(model, train_loader, device)
-        test_features, test_labels = extract_features(model, test_loader, device)
-        
-        knn_accuracy = evaluate_knn(
-            train_features,
-            train_labels,
-            test_features,
-            test_labels,
-            5,
-        )
-        results[name] = knn_accuracy
+        if name == "office_home_real_world":
+            
+            print(f"Processing {name} loader")
+            device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+            
+            model = utils.load_model(args.model_path, device)
+            
+            train_features, train_labels = extract_features(model, train_loader, device)
+            test_features, test_labels = extract_features(model, test_loader, device)
+            
+            knn_accuracy = evaluate_knn(
+                train_features,
+                train_labels,
+                test_features,
+                test_labels,
+                5,
+            )
+            results[name] = knn_accuracy
 
     for name, accuracy in results.items():
         print(f"{name}: {accuracy * 100:.2f}%")

@@ -163,51 +163,6 @@ def main():
 
         unlearn_method = unlearn.get_unlearn_method(args.unlearn)
         unlearn_method(unlearn_data_loaders, model, criterion, args)
-        
-        accuracy = {}
-        for name, loader in unlearn_data_loaders.items():
-            print(f"Validating {name} loader")
-            val_acc = validate(loader, model, criterion, args)
-            accuracy[name] = val_acc
-            print(f"{name} acc: {val_acc}")
-        
-        metrics = {
-        "epoch": args.unlearn_epochs,
-        f"{args.dataset}_retain_acc": accuracy["retain"],
-        f"{args.dataset}_forget_acc": accuracy["forget"],
-        f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
-        f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
-        }
-
-        knn_results = main_knn.evaluate_all_knn(model)
-        
-        metrics = {
-            f"office_home_real_world_knn": knn_results["office_home_real_world"],
-            f"office_home_art_knn": knn_results["office_home_art"],
-            f"office_home_clipart_knn": knn_results["office_home_clipart"],
-            f"office_home_product_knn": knn_results["office_home_product"],
-            f"cub_knn": knn_results["cub"],
-            f"domainnet126_clipart_knn": knn_results["domainnet126_clipart"],
-            f"domainnet126_painting_knn": knn_results["domainnet126_painting"],
-            f"domainnet126_real_knn": knn_results["domainnet126_real"],
-            f"domainnet126_sketch_knn": knn_results["domainnet126_sketch"],
-        }
-        
-        cka_results = main_cka.evaluate_all_cka(model)
-        
-        metrics = {
-            f"office_home_real_world_cka": cka_results["office_home_real_world_cka"],
-            f"office_home_art_cka": cka_results["office_home_art_cka"],
-            f"office_home_clipart_cka": cka_results["office_home_clipart_cka"],
-            f"office_home_product_cka": cka_results["office_home_product_cka"],
-            f"cub_cka": cka_results["cub_cka"],
-            f"domainnet126_clipart_cka": cka_results["domainnet126_clipart_cka"],
-            f"domainnet126_painting_cka": cka_results["domainnet126_painting_cka"],
-            f"domainnet126_real_cka": cka_results["domainnet126_real_cka"],
-            f"domainnet126_sketch_cka": cka_results["domainnet126_sketch_cka"],
-        }
-        
-        wandb.log(metrics)
 
         unlearn.save_unlearn_checkpoint(model, None, args)
     
