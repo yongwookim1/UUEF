@@ -6,23 +6,26 @@
 import copy
 import os
 import random
-
-# from advertorch.utils import NormalizeByChannelMeanStd
 import shutil
 import sys
 import time
+from typing import Tuple
 
 import numpy as np
 import torch
-from torchvision import models
-from torchvision import transforms
+import wandb
+from sklearn.neighbors import KNeighborsClassifier
+from torch.utils.data import DataLoader, random_split
+from torchvision import models, transforms
+from tqdm import tqdm
+
+from CKA.CKA import CudaCKA
 from dataset import *
 from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
-import wandb
-from CKA.CKA import CudaCKA
-import main_knn
+import utils
+
 
 __all__ = [
     "setup_model_dataset",
@@ -49,24 +52,127 @@ def init_wandb(args, project_name="unlearning"):
     return wandb.run
 
 
+def create_data_loaders(args):
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    
+    # ImageNet-1K
+    (
+        model,
+        retain_loader,
+        forget_loader,
+        val_retain_loader,
+        val_forget_loader
+    ) = utils.setup_model_dataset(args)
+    
+    # Office-Home
+    office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
+    office_home_art_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Art", batch_size=512, num_workers=4)
+    office_home_clipart_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Clipart", batch_size=512, num_workers=4)
+    office_home_product_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Product", batch_size=512, num_workers=4)
+
+    # CUB
+    cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
+    
+    # DomainNet126
+    domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_painting_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_sketch_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
+    
+    dataset_names = ["imagenet_forget", "imagenet_retain","imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
+    
+    dataloaders = {}
+    for i, dataloader in enumerate([forget_loader, retain_loader, val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
+        train_size = int(0.8 * len(dataloader.dataset))
+        test_size = len(dataloader.dataset) - train_size
+        
+        
+        g = torch.Generator()
+        g.manual_seed(2)
+        train_dataset, test_dataset = random_split(
+            dataloader.dataset, [train_size, test_size], generator=g
+        )
+        
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=512,
+            shuffle=False,
+            num_workers=4,
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=512,
+            shuffle=False,
+            num_workers=4,
+        )
+        
+        dataset_name = dataset_names[i]
+        dataloaders[dataset_name] = (train_loader, test_loader)
+    
+    return dataloaders
+
+
+@torch.no_grad()
+def extract_features(model, loader: DataLoader, device) -> Tuple[np.ndarray, np.ndarray]:
+    features, labels = [], []
+    model.eval()
+    
+    for x, y in tqdm(loader):
+        x, y = x.to(device), y.to(device)
+        outputs = model(x)
+        features.append(outputs.cpu())
+        labels.append(y.cpu())
+    
+    features_tensor = torch.cat(features).squeeze().cpu().numpy()
+    labels_array = torch.cat(labels).cpu().numpy()
+    return features_tensor, labels_array
+
+
+def office_home_real_world_knn(model, args):
+    setup_seed(2)
+    
+    data_loaders = create_data_loaders(args)["office_home_real_world"]
+    
+    knn_accuracy = {}
+    for dataset_name, (train_loader, test_loader) in data_loaders.items():
+        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        
+        train_features, train_labels = extract_features(model, train_loader, device)
+        test_features, test_labels = extract_features(model, test_loader, device)
+        
+        knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
+        knn.fit(train_features, train_labels)
+        score = knn.score(test_features, test_labels)
+        score = float(f"{score * 100:.2f}")
+        knn_accuracy[dataset_name] = score
+        
+    return knn_accuracy
+
+
 def evaluate_knn(model, args):
     setup_seed(2)
     
-    train_loader, test_loader = main_knn.create_data_loaders(args)
+    data_loaders = create_data_loaders(args)
     
-    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    
-    train_features, train_labels = main_knn.extract_features(model, train_loader, device)
-    test_features, test_labels = main_knn.extract_features(model, test_loader, device)
-    
-    knn_accuracy = main_knn.evaluate_knn(
-        train_features,
-        train_labels,
-        test_features,
-        test_labels,
-        5,
-    )
-    print(f"kNN(k=5) accuracy: {knn_accuracy * 100:.2f}%")
+    knn_accuracy = {}
+    for dataset_name, (train_loader, test_loader) in data_loaders.items():
+        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        
+        train_features, train_labels = extract_features(model, train_loader, device)
+        test_features, test_labels = extract_features(model, test_loader, device)
+        
+        knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
+        knn.fit(train_features, train_labels)
+        score = knn.score(test_features, test_labels)
+        score = float(f"{score * 100:.2f}")
+        knn_accuracy[dataset_name] = score
+        
     return knn_accuracy
 
 
@@ -81,7 +187,7 @@ class FeatureExtractor:
         self.features = []
 
 
-def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='all', Dr_features=None, Df_features=None, data=None):
+def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='avgpool', Dr_features=None, Df_features=None, data=None):
     """
     compute CKA similarity between two models with feature reuse
     """
@@ -113,7 +219,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='al
 
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
         return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
 
     elif (Dr_features or Df_features):
@@ -173,7 +279,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='al
         
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
         return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
 
     elif os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
@@ -220,7 +326,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='al
 
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
         return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
     else:
         unlearned_model.eval()
@@ -266,7 +372,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='al
             retrained_extractor.clear()
 
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy()} for layer, value in cka_results.items()}
+        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
         return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
             
 
