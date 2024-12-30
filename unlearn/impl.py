@@ -8,7 +8,6 @@ import utils
 import wandb
 from torch.utils.data import DataLoader
 
-import main_knn
 from trainer.val import validate
 from pruner import extract_mask, prune_model_custom, remove_prune
 import pruner
@@ -168,7 +167,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     if args.evaluate_knn:
                         print(f"Validating kNN on Office-Home")
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
-                        accuracy["office_home_knn"] = float(utils.evaluate_knn(unlearned_model, args)*100)
+                        accuracy["office_home_knn"] = utils.office_home_real_world_knn(unlearned_model, args)
                         print(f"office_home_knn: {accuracy['office_home_knn']}")
                     
                     if args.evaluate_cka:
