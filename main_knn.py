@@ -221,37 +221,28 @@ def main():
     
     dataloaders = create_all_data_loaders(args)
     
-    model_paths = [
-        # "/home/kyw1654/unlearning/baseline/result/SPKD/SPKD/7e-06/14/SPKDcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/RKD/RKD/7e-06/14/RKDcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/AKD/AKD/7e-06/14/AKDcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/GA/GA/5e-06/5/GAcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/RL/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/SalUn/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
-        # "/home/kyw1654/unlearning/baseline/result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
-    ]
     results = {}
-    for model_path in model_paths:
-        for name, (train_loader, test_loader) in dataloaders.items():
-            print(f"Processing {name} loader")
-            device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-            
-            model = utils.load_model(model_path, device)
-            
-            train_features, train_labels = extract_features(model, train_loader, device)
-            test_features, test_labels = extract_features(model, test_loader, device)
-            
-            knn_accuracy = evaluate_knn(
-                train_features,
-                train_labels,
-                test_features,
-                test_labels,
-                5,
-            )
-            results[name] = knn_accuracy
-        for name, accuracy in results.items():
-            print(f"{name}: {accuracy * 100:.2f}%")
+    for name, (train_loader, test_loader) in dataloaders.items():
+        print(f"Processing {name} loader")
+        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        
+        model = utils.load_model(args.model_path, device)
+        
+        train_features, train_labels = extract_features(model, train_loader, device)
+        test_features, test_labels = extract_features(model, test_loader, device)
+        
+        knn_accuracy = evaluate_knn(
+            train_features,
+            train_labels,
+            test_features,
+            test_labels,
+            5,
+        )
+        results[name] = knn_accuracy
+
+    for name, accuracy in results.items():
+        print(f"{name}: {accuracy * 100:.2f}%")
+    
     return results
 
 
