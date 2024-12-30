@@ -35,6 +35,8 @@ def normalize_cov(cov_mat):
 
 def mahalanobis_dist(samples, samples_lab, mean, S_inv, device):
     # check optimized version
+    mean = mean.to(device)
+    samples = samples.to(device)
     diff = F.normalize(tuckey_transf(samples), p=2, dim=-1)[:,None,:] - F.normalize(mean, p=2, dim=-1)
     diff = diff.to("cpu")
     S_inv = S_inv.to("cpu")
@@ -110,7 +112,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     # load embeddings and labels if they exist
     if os.path.exists(embeddings_path):
-        saved_data = torch.load(embeddings_path)
+        saved_data = torch.load(embeddings_path, map_location="cpu")
         SCAR.ret_embs = saved_data['ret_embs']
         SCAR.labs = saved_data['labs']
     else:
@@ -154,7 +156,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
     # load distributions and inverse covariance matrices if they exist
     if os.path.exists(distribs_path):
-        saved_data = torch.load(distribs_path)
+        saved_data = torch.load(distribs_path, map_location="cpu")
         SCAR.distribs = saved_data['distribs']
         SCAR.cov_matrix_inv = saved_data['cov_matrix_inv']
     else:
@@ -164,7 +166,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             for i in tqdm(range(args.num_classes)):
                 if type(args.class_to_replace) is list:
                     if i not in args.class_to_replace:
-                        samples = tuckey_transf(SCAR.ret_embs[SCAR.labs==i])
+                        samples = tuckey_transf(ret_embs[labs==i])
                         distribs.append(samples.mean(0))
                         cov = torch.cov(samples.T)
                         cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
@@ -247,7 +249,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 
             outputs_ret = outputs_ret[label_out != args.class_to_replace[0], :]
             
-            temperature = 1
+            temperature = 2
             
             loss_ret = distill(outputs_ret, outputs_original / temperature) * 5
             loss = loss_ret + loss_fgt
