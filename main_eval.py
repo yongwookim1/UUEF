@@ -33,11 +33,10 @@ def evaluate_model(model, retrained_model, device, args):
     print("Evaluating ImageNet accuracy...")
     criterion = nn.CrossEntropyLoss()
     for name, loader in data_loaders.items():
-        if name == "val_retain":
-            print(f"Validating {name} loader")
-            val_acc = validate(loader, model, criterion, args)
-            results[f"imagenet_{name}_acc"] = val_acc
-            print(f"imagenet_{name}_acc: {val_acc}")
+        print(f"Validating {name} loader")
+        val_acc = validate(loader, model, criterion, args)
+        results[f"imagenet_{name}_acc"] = val_acc
+        print(f"imagenet_{name}_acc: {val_acc}")
     
     
     # evaluate kNN
