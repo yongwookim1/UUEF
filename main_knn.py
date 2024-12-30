@@ -201,7 +201,6 @@ def main():
     results = {}
     for name, (train_loader, test_loader) in dataloaders.items():
         if name == "office_home_real_world":
-            
             print(f"Processing {name} loader")
             device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
             
