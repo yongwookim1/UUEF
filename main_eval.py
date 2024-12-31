@@ -132,11 +132,11 @@ def main():
         run = utils.init_wandb(args, project_name="unlearning_evaluation")
         
     model_paths = [
-        # "./pretrained_model/0model_SA_best159.pth.tar",
-        # "./pretrained_model/retraincheckpoint100.pth.tar",
-        "./result/GA/GA/5e-06/5/GAcheckpoint.pth.tar",
-        "./result/RL/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
-        "./result/SalUn/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
+        "./pretrained_model/0model_SA_best159.pth.tar",
+        "./pretrained_model/retraincheckpoint100.pth.tar",
+        "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
+        "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
+        "./result/SalUn/RL_imagenet/5e-06/10/RL_imagenetcheckpoint.pth.tar",
         "./result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
         "./result/SCAR/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
         "./result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
@@ -159,8 +159,10 @@ def main():
         print("-" * 50)
         for metric, value in results.items():
             print(f"{metric}: {value:.2f}")
-        
-        method_name = model_path.split('/')[-4]
+        try:
+            method_name = model_path.split('/')[-4]
+        except:
+            method_name = "Original, Retrained"
         if args.use_wandb:
             wandb.log({f"{method_name}/{k}": v for k, v in results.items()})
         
