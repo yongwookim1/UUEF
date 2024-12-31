@@ -99,12 +99,12 @@ def GA_CKA(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 )
                 start = time.time()
 
-        # Restore phase with CKA
+        # restore phase with CKA
         print("Restore phase")
         for i, data in enumerate(retain_loader):
             image, target = get_x_y_from_data_dict(data, device)
             
-            # Apply augmentation
+            # apply augmentation
             aug_image = apply_crop_resize(image)
 
             features_u = []
