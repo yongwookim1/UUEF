@@ -129,7 +129,7 @@ def main():
     
     # initialize wandb
     if args.use_wandb:
-        run = utils.init_wandb(args)
+        run = utils.init_wandb(args, project_name="unlearning_evaluation")
         
     model_paths = [
         # "./pretrained_model/0model_SA_best159.pth.tar",
@@ -160,7 +160,7 @@ def main():
         for metric, value in results.items():
             print(f"{metric}: {value:.4f}")
         
-        method_name = model_path.split('/')[-3].replace('checkpoint','')
+        method_name = model_path.split('/')[-4]
         if args.use_wandb:
             wandb.log({f"{method_name}/{k}": v for k, v in results.items()})
         
