@@ -84,13 +84,12 @@ def create_data_loaders(args):
     domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
     domainnet126_sketch_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
     
-    dataset_names = ["imagenet_forget", "imagenet_retain","imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
+    dataset_names = ["imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
     
     dataloaders = {}
-    for i, dataloader in enumerate([forget_loader, retain_loader, val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
+    for i, dataloader in enumerate([val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
         train_size = int(0.8 * len(dataloader.dataset))
         test_size = len(dataloader.dataset) - train_size
-        
         
         g = torch.Generator()
         g.manual_seed(2)
@@ -137,32 +136,34 @@ def extract_features(model, loader: DataLoader, device) -> Tuple[np.ndarray, np.
 def office_home_real_world_knn(model, args):
     setup_seed(2)
     
-    data_loaders = create_data_loaders(args)["office_home_real_world"]
-    
-    knn_accuracy = {}
-    for dataset_name, (train_loader, test_loader) in data_loaders.items():
-        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-        
-        train_features, train_labels = extract_features(model, train_loader, device)
-        test_features, test_labels = extract_features(model, test_loader, device)
-        
-        knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
-        knn.fit(train_features, train_labels)
-        score = knn.score(test_features, test_labels)
-        score = float(f"{score * 100:.2f}")
-        knn_accuracy[dataset_name] = score
-        
-    return knn_accuracy
-
-
-def evaluate_knn(model, args):
-    setup_seed(2)
-    
     data_loaders = create_data_loaders(args)
     
+    train_loader, test_loader = data_loaders["office_home_real_world"]
+    
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
+    train_features, train_labels = extract_features(model, train_loader, device)
+    test_features, test_labels = extract_features(model, test_loader, device)
+    
+    knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
+    knn.fit(train_features, train_labels)
+    score = knn.score(test_features, test_labels)
+    score = float(f"{score * 100:.2f}")
+    
+    return {"office_home_real_world": score}
+
+
+def evaluate_knn(model_path, args):
+    setup_seed(2)
+    data_loaders = create_data_loaders(args)
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    
     knn_accuracy = {}
     for dataset_name, (train_loader, test_loader) in data_loaders.items():
-        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        if "imagenet" in dataset_name:
+            model = initialize_model(model_path, device)
+        else:
+            model = load_model(model_path, device)
         
         train_features, train_labels = extract_features(model, train_loader, device)
         test_features, test_labels = extract_features(model, test_loader, device)
@@ -219,8 +220,8 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
 
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
-        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+        layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
+        return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
 
     elif (Dr_features or Df_features):
         features_dir = os.path.join('features')
@@ -279,8 +280,8 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
         
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
-        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+        layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
+        return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
 
     elif os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
         features_dir = os.path.join('features')
@@ -326,8 +327,8 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
 
         # average results
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
-        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+        layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
+        return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
     else:
         unlearned_model.eval()
         retrained_model.eval()
@@ -372,8 +373,8 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
             retrained_extractor.clear()
 
         n = len(data_loader)
-        layer_results = {layer: {'cka': (value / n).cpu().numpy() * 100} for layer, value in cka_results.items()}
-        return {'cka': sum(result['cka'] for result in layer_results.values()) / len(layer_results)}
+        layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
+        return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
             
 
 def load_model(pretrained_model_path, device):
@@ -387,6 +388,38 @@ def load_model(pretrained_model_path, device):
     model.load_state_dict(state_dict, strict=True)
     model = model.to(device)
     print(f"Model loading complete: {pretrained_model_path}")
+    return model
+
+
+def initialize_model(model_path, device, imagenet=True):
+    """initialize and load a ResNet50 model from checkpoint
+    
+    Args:
+        model_path (str): Path to model checkpoint
+        device (torch.device): Device to load model to
+        imagenet (bool): Whether to use ImageNet pretrained weights
+        
+    Returns:
+        model (nn.Module): Initialized and loaded model
+    """
+    model = resnet50(imagenet=imagenet)
+    
+    # Add normalization layer
+    normalization = NormalizeByChannelMeanStd(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+    model.normalize = normalization
+
+    # Load checkpoint
+    checkpoint = torch.load(model_path, map_location=device)
+    if "state_dict" in checkpoint.keys():
+        checkpoint = checkpoint["state_dict"]
+    checkpoint = {k.replace("module.", ""): v for k, v in checkpoint.items()}
+    
+    model.load_state_dict(checkpoint, strict=True)
+    model = model.to(device)
+    model.eval()
+    
     return model
 
 
