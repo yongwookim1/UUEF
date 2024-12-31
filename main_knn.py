@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, random_split
-from torchvision import models, transforms
+from torchvision import models, transforms, datasets
 from sklearn.neighbors import KNeighborsClassifier
 from tqdm import tqdm
 
@@ -44,6 +44,77 @@ class OfficeHomeDataset(Dataset):
             image = self.transform(image)
 
         return image, label
+    
+    
+class DomainNet126(Dataset):
+    def __init__(self, root, domain, train=True, transform=None, from_file=False):
+        
+        if not from_file:
+            data = []
+            labels = []
+
+            f = open(os.path.join(root,domain+"_list.txt"), "r")
+            lines = f.readlines()
+            lines = [l.split(" ") for l in lines]
+            lines = np.array(lines)
+
+            files = lines[:-1,0]
+            files = [os.path.join(root, sfile) for sfile in files]
+
+            classes = lines[:-1,1]
+            classes = [int(c[:-1]) for c in classes]
+
+            data.extend(files)
+            labels.extend(classes)
+
+            self.data = np.array(data)
+            self.labels = np.array(labels)
+            self.transform = transform
+
+        else:
+            data = np.load(os.path.join(root, domain+"_imgs.npy"))
+            labels = np.load(os.path.join(root, domain+"_labels.npy"))
+        
+            np.random.seed(42)
+            idx = np.random.permutation(len(data))
+
+            self.data = np.array(data)[idx]
+            self.labels = np.array(labels)[idx]
+
+            test_perc = 20
+            
+            test_len = len(self.data)*test_perc//100                   
+            
+            if train:
+                self.data = self.data[test_len:]
+                self.labels = self.labels[test_len:]
+            else:
+                self.data = self.data[:test_len]
+                self.labels = self.labels[:test_len]
+
+
+    def __len__(self):
+        return len(self.data)
+
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.labels[index]          
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.open(img)
+        
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, target
 
 
 @torch.no_grad()
@@ -71,23 +142,26 @@ def create_data_loaders(args):
     ])
     
     dataset = OfficeHomeDataset(args.office_home_dataset_path, domain="Real_World", transform=transform)
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
     
+    train_size = int(0.8 * len(dataloader.dataset))
+    test_size = len(dataloader.dataset) - train_size
+    
+    g = torch.Generator()
+    g.manual_seed(2)
     train_dataset, test_dataset = random_split(
-        dataset, [train_size, test_size]
+        dataloader.dataset, [train_size, test_size], generator=g
     )
     
     train_loader = DataLoader(
         train_dataset,
-        batch_size=32,
+        batch_size=512,
         shuffle=False,
         num_workers=4,
     )
     
     test_loader = DataLoader(
         test_dataset,
-        batch_size=32,
+        batch_size=512,
         shuffle=False,
         num_workers=4,
     )
@@ -103,39 +177,19 @@ def create_all_data_loaders(args):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     
-    # ImageNet-1K
-    (
-        model,
-        retain_loader,
-        forget_loader,
-        val_retain_loader,
-        val_forget_loader
-    ) = utils.setup_model_dataset(args)
-    
-    # Office-Home
-    office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
-    office_home_art_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Art", batch_size=512, num_workers=4)
-    office_home_clipart_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Clipart", batch_size=512, num_workers=4)
-    office_home_product_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Product", batch_size=512, num_workers=4)
-
-    # CUB
-    cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
-    
-    # DomainNet126
-    domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_painting_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_sketch_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
-    
-    dataset_names = ["imagenet_forget", "imagenet_retain","imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
-    
     dataloaders = {}
-    for i, dataloader in enumerate([office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
-        train_size = int(0.8 * len(dataloader.dataset))
-        test_size = len(dataloader.dataset) - train_size
+    
+    office_home_domains = ["Real_World", "Art", "Clipart", "Product"]
+    for domain in office_home_domains:
         
+        dataset = OfficeHomeDataset(args.office_home_dataset_path, domain=domain, transform=transform)
+        train_size = int(0.8 * len(dataset))
+        test_size = len(dataset) - train_size
+        
+        g = torch.Generator()
+        g.manual_seed(2)
         train_dataset, test_dataset = random_split(
-            dataloader.dataset, [train_size, test_size]
+            dataset, [train_size, test_size], generator=g
         )
         
         train_loader = DataLoader(
@@ -152,8 +206,65 @@ def create_all_data_loaders(args):
             num_workers=4,
         )
         
-        dataset_name = dataset_names[i]
-        dataloaders[dataset_name] = (train_loader, test_loader)
+        dataloaders[f"office_home_{domain.lower()}"] = (train_loader, test_loader)
+    
+    # CUB
+    cub_dataset = datasets.ImageFolder(root=args.cub_dataset_path, transform=transform)
+    
+    train_size = int(0.8 * len(cub_dataset))
+    test_size = len(cub_dataset) - train_size
+    
+    g = torch.Generator()
+    g.manual_seed(2)
+    train_dataset, test_dataset = random_split(
+        cub_dataset, [train_size, test_size], generator=g
+    )
+    
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=512,
+        shuffle=False,
+        num_workers=4,
+    )
+    
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=512,
+        shuffle=False,
+        num_workers=4,
+    )
+    
+    dataloaders["cub"] = (train_loader, test_loader)
+    
+    # DomainNet126
+    domainnet_domains = ['clipart', 'painting', 'real', 'sketch']
+    for domain in domainnet_domains:
+        dataset = DomainNet126(args.domainnet_dataset_path, domain=domain, transform=transform)
+        
+        train_size = int(0.8 * len(dataset))
+        test_size = len(dataset) - train_size
+        
+        g = torch.Generator()
+        g.manual_seed(2)
+        train_dataset, test_dataset = random_split(
+            dataset, [train_size, test_size], generator=g
+        )
+        
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=512,
+            shuffle=False,
+            num_workers=4,
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=512,
+            shuffle=False,
+            num_workers=4,
+        )
+        
+        dataloaders[f"domainnet126_{domain}"] = (train_loader, test_loader)
     
     return dataloaders
 
@@ -192,31 +303,29 @@ def evaluate_office_home_knn(model, args):
 
 
 def main():
-    utils.setup_seed(2)
-    
     args = arg_parser.parse_args()
+    utils.setup_seed(2)
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
     dataloaders = create_all_data_loaders(args)
     
     results = {}
+    model = utils.load_model(args.model_path, device)
+    
     for name, (train_loader, test_loader) in dataloaders.items():
-        if name == "office_home_real_world":
-            print(f"Processing {name} loader")
-            device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-            
-            model = utils.load_model(args.model_path, device)
-            
-            train_features, train_labels = extract_features(model, train_loader, device)
-            test_features, test_labels = extract_features(model, test_loader, device)
-            
-            knn_accuracy = evaluate_knn(
-                train_features,
-                train_labels,
-                test_features,
-                test_labels,
-                5,
-            )
-            results[name] = knn_accuracy
+        print(f"Processing {name} loader")
+        
+        train_features, train_labels = extract_features(model, train_loader, device)
+        test_features, test_labels = extract_features(model, test_loader, device)
+        
+        knn_accuracy = evaluate_knn(
+            train_features,
+            train_labels,
+            test_features,
+            test_labels,
+            5,
+        )
+        print(f"kNN(k=5) accuracy: {knn_accuracy * 100:.2f}%")
 
     for name, accuracy in results.items():
         print(f"{name}: {accuracy * 100:.2f}%")
