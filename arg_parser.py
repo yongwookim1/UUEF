@@ -2,7 +2,7 @@ import argparse
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Classification of SalUn Experiments")
+    parser = argparse.ArgumentParser()
 
     ##################################### Dataset #################################################
     parser.add_argument(
@@ -123,7 +123,6 @@ def parse_args():
         type=int,
         help="number of total epochs for unlearn to run",
     )
-
     parser.add_argument(
         "--num_indexes_to_replace",
         type=int,
@@ -132,11 +131,10 @@ def parse_args():
     )
     parser.add_argument(
         "--class_to_replace", 
-        type=int, 
-        default=[543, 407, 487, 330, 897, 990, 555, 141, 545, 718, 638, 276, 437, 81, 349, 803, 997, 412, 454, 329, 179, 592, 277, 63, 373, 535, 239, 20, 771, 876, 96, 657, 547, 151, 794, 460, 919, 75, 408, 123, 192, 234, 576, 553, 286, 152, 35, 567, 661, 644, 546, 124, 810, 256, 899, 489, 517, 529, 139, 453, 593, 883, 287, 867, 351, 10, 173, 861, 795, 304, 540, 341, 416, 631, 969, 385, 12, 715, 68, 292, 457, 110, 183, 915, 214, 116, 582, 562, 918, 264, 186, 871, 600, 790, 532, 430, 960, 84, 963, 788],
+        type=str,
+        default="random_100",
         help="Specific class to forget"
     )
-
     parser.add_argument(
         "--indexes_to_replace",
         type=list,

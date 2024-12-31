@@ -9,6 +9,7 @@
 /plots
 /wandb
 /features
+!/class_to_replace/*.txt
 
 # Created by https://www.toptal.com/developers/gitignore/api/git,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=git,python
