@@ -144,8 +144,7 @@ def GA_CKA_SPKD(data_loaders, model, criterion, optimizer, epoch, args, mask=Non
             features_o.clear()
             
             ce_loss = criterion(output, target)
-            # Combine all losses
-            loss = 10 * ce_loss + 100*(1 - cka_similarity) + 10*spkd_loss
+            loss = 10*ce_loss + 100*(1 - cka_similarity) + 10*spkd_loss
 
             optimizer.zero_grad()
             loss.backward()
