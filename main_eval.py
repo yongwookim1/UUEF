@@ -63,7 +63,6 @@ def evaluate_model(model_path, retrained_model, device, args):
         'domainnet126_real_knn': knn_accuracy['domainnet126_real'],
         'domainnet126_sketch_knn': knn_accuracy['domainnet126_sketch'],
     })
-    print(f"imagenet_val_forget_knn: {results['imagenet_val_forget_knn']}")
         
     # evaluate CKA
     print("Evaluating CKA...")
