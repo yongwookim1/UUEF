@@ -138,7 +138,7 @@ def main():
         "./result/RL/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
         "./result/SalUn/RL_imagenet/5e-06/2/RL_imagenetcheckpoint.pth.tar",
         "./result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
-        "./result/SCAR/SCAR/0.0005/19/SCARcheckpoint.pth.tar",
+        "./result/SCAR/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
         "./result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
         "./result/GAwithKD/GAwithKD/1e-05/20/GAwithKDcheckpoint.pth.tar",
         "./result/RKD/RKD/7e-06/14/RKDcheckpoint.pth.tar",
@@ -158,7 +158,7 @@ def main():
         print("Evaluation results:")
         print("-" * 50)
         for metric, value in results.items():
-            print(f"{metric}: {value:.4f}")
+            print(f"{metric}: {value:.2f}")
         
         method_name = model_path.split('/')[-4]
         if args.use_wandb:
