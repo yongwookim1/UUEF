@@ -131,7 +131,6 @@ def parse_args():
     )
     parser.add_argument(
         "--class_to_replace", 
-        type=str,
         default="random_100",
         help="Specific class to forget"
     )
