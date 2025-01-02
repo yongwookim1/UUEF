@@ -66,7 +66,7 @@ python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original 
 
 A simple example to generate saliency map for ResNet-50 on ImageNet.
 ```bash
-python generate_mask.py --dataset imagenet --data_dir ${path of the imagenet dataset}  --arch resnet50 --imagenet_arch --save_dir ./mask --model_path /home/kyw1654/unlearning/baseline/pretrained_model/0model_SA_best159.pth.tar --unlearn_epochs 1
+python generate_mask.py --dataset imagenet --data_dir ${path of the imagenet dataset}  --arch resnet50 --imagenet_arch --save_dir ./mask --model_path ./pretrained_model/0model_SA_best159.pth.tar --unlearn_epochs 1
 ```
 
 3. Unlearn the original model.
@@ -103,7 +103,7 @@ python main_forget.py --dataset imagenet --data_dir ${path of the imagenet datas
 
 * GA
 ```bash
-python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn GA --class_to_replace 4500 --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
+python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn GA --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
 ```
 
 * l1-sparse
@@ -128,6 +128,11 @@ Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-
 --evaluate_knn
 
 --evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset}
+```
+
+Evalaute unlearned model using kNN and CKA on Office-Home, CUB, DomainNet126 dataset.
+```bash
+python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --arch resnet50 --imagenet_arch --model_path ${path of the unlearned model} --batch_size 512
 ```
 
 ## Acknowledgements
