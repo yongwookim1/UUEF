@@ -138,7 +138,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                 
                 # evaluate
                 forget_acc_list = ["GA", "RL", "RL_imagenet"]
-                retain_acc_list = ["SPKD", "SPKD_aug", "RKD", "AKD", "FT", "SPKD_retrained", "GA_CKA"]
+                retain_acc_list = ["SPKD", "SPKD_aug", "RKD", "AKD", "FT", "SPKD_retrained", "GA_CKA", "GA_KD"]
                 if args.unlearn != "SCRUB" or epoch % 10 == 0:
                     accuracy = {}
                     if args.unlearn in retain_acc_list:
