@@ -630,10 +630,11 @@ def setup_model_dataset(args):
             
         train_subset_indices = torch.ones_like(train_ys)
         
-        if not args.class_to_replace.isdigit():
-            class_file = f"./class_to_replace/{args.class_to_replace}.txt"
-            with open(class_file, "r") as f:
-                args.class_to_replace = [int(line.strip()) for line in f if line.strip()]
+        if type(args.class_to_replace) != list:
+            if not args.class_to_replace.isdigit():
+                class_file = f"./class_to_replace/{args.class_to_replace}.txt"
+                with open(class_file, "r") as f:
+                    args.class_to_replace = [int(line.strip()) for line in f if line.strip()]
         
         # when train the model
         if args.class_to_replace is None and args.num_indexes_to_replace is None:
