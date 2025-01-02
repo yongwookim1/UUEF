@@ -131,7 +131,7 @@ def parse_args():
     )
     parser.add_argument(
         "--class_to_replace", 
-        default="random_100",
+        default="random100",
         help="Specific class to forget"
     )
     parser.add_argument(
