@@ -1,3 +1,4 @@
+from .retrain import retrain
 from .GA import GA,GA_l1
 from .RL import RL
 from .FT import FT,FT_l1
