@@ -132,24 +132,26 @@ def main():
         run = utils.init_wandb(args, project_name="unlearning_evaluation")
         
     model_paths = [
-        "./pretrained_model/0model_SA_best159.pth.tar",
-        "./pretrained_model/retraincheckpoint100.pth.tar",
-        "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
-        "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
-        "./result/SalUn/RL_imagenet/5e-06/10/RL_imagenetcheckpoint.pth.tar",
-        "./result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
-        "./result/SCAR/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
-        "./result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
-        "./result/GAwithKD/GAwithKD/1e-05/20/GAwithKDcheckpoint.pth.tar",
-        "./result/RKD/RKD/7e-06/14/RKDcheckpoint.pth.tar",
-        "./result/AKD/AKD/7e-06/14/AKDcheckpoint.pth.tar",
-        "./result/SPKD/SPKD/7e-06/14/SPKDcheckpoint.pth.tar",
+        # "./pretrained_model/0model_SA_best159.pth.tar",
+        # "./pretrained_model/retraincheckpoint100.pth.tar",
+        # "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
+        # "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
+        "./result/SalUn/RL_imagenet/5e-06/9/RL_imagenetcheckpoint.pth.tar",
+        "./result/FT/FT/1e-04/39/FTcheckpoint.pth.tar",
+        # "./result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
+        # "./result/SCAR/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
+        # "./result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
+        # "./result/GAwithKD/GAwithKD/1e-05/20/GAwithKDcheckpoint.pth.tar",
+        # "./result/RKD/RKD/7e-06/14/RKDcheckpoint.pth.tar",
+        # "./result/AKD/AKD/7e-06/14/AKDcheckpoint.pth.tar",
+        # "./result/SPKD/SPKD/7e-06/14/SPKDcheckpoint.pth.tar",
+        "./result/SPKD_retrained/SPKD_retrained/1e-05/14/SPKD_retrainedcheckpoint.pth.tar",
     ]
 
     retrained_model = utils.load_model(args.retrained_model_path, device)
     
     results = {}
-    
+    flag = True
     for model_path in model_paths:
         eval_results = evaluate_model(model_path, retrained_model, device, args)
         results.update(eval_results)
@@ -159,12 +161,20 @@ def main():
         print("-" * 50)
         for metric, value in results.items():
             print(f"{metric}: {value:.2f}")
+
         try:
             method_name = model_path.split('/')[-4]
         except:
-            method_name = "Original, Retrained"
+            method_name = "Original" if flag else "Retrained"
+            flag = False
+            
         if args.use_wandb:
-            wandb.log({f"{method_name}/{k}": v for k, v in results.items()})
+            wandb_results = {}
+            for metric_name, value in results.items():
+                wandb_results[f"methods/{method_name}/{metric_name}"] = value
+                wandb_results[f"metrics/{metric_name}/{method_name}"] = value
+            
+            wandb.log(wandb_results)
         
         # save results
         save_dir = f"result/evaluation/{method_name}"
