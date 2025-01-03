@@ -127,7 +127,7 @@ Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-
 ```bash
 --evaluate_knn
 
---evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset}
+--evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset} --class_to_replace ${classes to forget}
 ```
 
 Evalaute unlearned model using kNN and CKA on Office-Home, CUB, DomainNet126 dataset.
