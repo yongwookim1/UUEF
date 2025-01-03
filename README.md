@@ -123,16 +123,16 @@ To enable evaluation and tracking of the unlearned model using WandB, include th
 --use_wandb --wandb_name ${project name}
 ```
 
-Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Include flags --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model and the path of the office-home dataset.
+Evaluate unlearned model using kNN and CKA(Centered Kernel Alignment) on Office-Home dataset. Include flags --evaluate_knn and --evaluate_cka to evaluate the unlearned model. To evaluate CKA, you need to set the path of the retrained model and the path of the office-home, CUB, DomainNet126 dataset.
 ```bash
 --evaluate_knn
 
---evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset} --class_to_replace ${classes to forget}
+--evaluate_cka --retrained_model_path ${path of the retrained model} --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --class_to_replace ${classes to forget}
 ```
 
 Evalaute unlearned model using kNN and CKA on Office-Home, CUB, DomainNet126 dataset.
 ```bash
-python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --arch resnet50 --imagenet_arch --model_path ${path of the unlearned model} --batch_size 512
+python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --arch resnet50 --imagenet_arch --model_path ${path of the unlearned model} --batch_size 512
 ```
 
 ## Acknowledgements
