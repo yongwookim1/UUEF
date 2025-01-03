@@ -24,7 +24,6 @@ from dataset import *
 from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
-import utils
 
 
 __all__ = [
@@ -67,27 +66,27 @@ def create_data_loaders(args):
         forget_loader,
         val_retain_loader,
         val_forget_loader
-    ) = utils.setup_model_dataset(args)
+    ) = setup_model_dataset(args)
     
     # Office-Home
-    office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
-    office_home_art_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Art", batch_size=512, num_workers=4)
-    office_home_clipart_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Clipart", batch_size=512, num_workers=4)
-    office_home_product_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Product", batch_size=512, num_workers=4)
+    office_home_real_world_data_loader = office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
+    office_home_art_data_loader = office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Art", batch_size=512, num_workers=4)
+    office_home_clipart_data_loader = office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Clipart", batch_size=512, num_workers=4)
+    office_home_product_data_loader = office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Product", batch_size=512, num_workers=4)
 
     # CUB
-    cub_data_loader = utils.cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
+    cub_data_loader = cub_dataloaders(batch_size=512, data_dir=args.cub_dataset_path, num_workers=4)
     
     # DomainNet126
-    domainnet126_clipart_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_painting_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_real_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
-    domainnet126_sketch_data_loader = utils.domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_clipart_data_loader = domainnet126_dataloaders(batch_size=512, domain='clipart', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_painting_data_loader = domainnet126_dataloaders(batch_size=512, domain='painting', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_real_data_loader = domainnet126_dataloaders(batch_size=512, domain='real', data_dir=args.domainnet_dataset_path, num_workers=4)
+    domainnet126_sketch_data_loader = domainnet126_dataloaders(batch_size=512, domain='sketch', data_dir=args.domainnet_dataset_path, num_workers=4)
     
-    dataset_names = ["imagenet_val_forget", "imagenet_val_retain","office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
+    dataset_names = ["imagenet_forget", "imagenet_retain", "imagenet_val_forget", "imagenet_val_retain", "office_home_real_world", "office_home_art", "office_home_clipart", "office_home_product", "cub", "domainnet126_clipart", "domainnet126_painting", "domainnet126_real", "domainnet126_sketch"]
     
-    dataloaders = {}
-    for i, dataloader in enumerate([val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
+    data_loaders = {}
+    for i, dataloader in enumerate([forget_loader, retain_loader, val_forget_loader, val_retain_loader, office_home_real_world_data_loader, office_home_art_data_loader, office_home_clipart_data_loader, office_home_product_data_loader, cub_data_loader, domainnet126_clipart_data_loader, domainnet126_painting_data_loader, domainnet126_real_data_loader, domainnet126_sketch_data_loader]):
         train_size = int(0.8 * len(dataloader.dataset))
         test_size = len(dataloader.dataset) - train_size
         
@@ -112,9 +111,9 @@ def create_data_loaders(args):
         )
         
         dataset_name = dataset_names[i]
-        dataloaders[dataset_name] = (train_loader, test_loader)
+        data_loaders[dataset_name] = (train_loader, test_loader)
     
-    return dataloaders
+    return data_loaders
 
 
 @torch.no_grad()
@@ -135,11 +134,8 @@ def extract_features(model, loader: DataLoader, device) -> Tuple[np.ndarray, np.
 
 def office_home_real_world_knn(model, args):
     setup_seed(2)
-    
     data_loaders = create_data_loaders(args)
-    
     train_loader, test_loader = data_loaders["office_home_real_world"]
-    
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
     train_features, train_labels = extract_features(model, train_loader, device)
@@ -170,8 +166,23 @@ def evaluate_knn(model_path, args):
         
         knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
         knn.fit(train_features, train_labels)
-        score = knn.score(test_features, test_labels)
-        score = float(f"{score * 100:.2f}")
+        
+        # process test data in batches
+        batch_size = 1024
+        total_score = 0
+        num_batches = 0
+        
+        for start_idx in tqdm(range(0, len(test_features), batch_size)):
+            end_idx = min(start_idx + batch_size, len(test_features))
+            batch_features = test_features[start_idx:end_idx]
+            batch_labels = test_labels[start_idx:end_idx]
+            
+            score = knn.score(batch_features, batch_labels)
+            total_score += score
+            num_batches += 1
+        
+        avg_score = total_score / num_batches if num_batches > 0 else 0
+        score = float(f"{avg_score * 100:.2f}")
         knn_accuracy[dataset_name] = score
         
     return knn_accuracy
@@ -198,13 +209,13 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
     cka_results = {layer: 0 for layer in layers}
 
     # if we have pre-computed features for both models, use them directly
-    if (Dr_features or Df_features) and os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
-        saved_features = torch.load(os.path.join('features', f'{data}_retrained_features.pt'), map_location="cpu")
+    if (Dr_features is not None or Df_features is not None) and os.path.exists(os.path.join('features', f'{data}_{args.class_to_replace}_retrained_features.pt')):
+        saved_features = torch.load(os.path.join('features', f'{data}_{args.class_to_replace}_retrained_features.pt'), map_location="cpu")
         
         for batch_idx in tqdm(range(len(data_loader))):
             for i, layer in enumerate(layers):
                 # get unlearned features
-                f_u = (Dr_features[batch_idx][i] if Dr_features else Df_features[batch_idx][i]).to(device)
+                f_u = (Dr_features[batch_idx][i] if Dr_features is not None else Df_features[batch_idx][i]).to(device)
                 f_u = f_u.view(f_u.size(0), -1)
 
                 # get retrained features
@@ -223,12 +234,12 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
         layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
         return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
 
-    elif (Dr_features or Df_features):
+    elif (Dr_features is not None or Df_features is not None):
         features_dir = os.path.join('features')
         os.makedirs(features_dir, exist_ok=True)
         
         # define paths for feature files
-        features_path = os.path.join(features_dir, f'{data}_retrained_features.pt') if data else None
+        features_path = os.path.join(features_dir, f'{data}_{args.class_to_replace}_retrained_features.pt') if data else None
         
         retrained_model.eval()
         retrained_features = []
@@ -247,9 +258,9 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
             batch_features = []
             for i, layer in enumerate(layers):
                 # get unlearned features
-                if Dr_features:
+                if Dr_features is not None:
                     f_u = Dr_features[batch_idx][i].to(device)
-                elif Df_features:
+                elif Df_features is not None:
                     f_u = Df_features[batch_idx][i].to(device)
                 else:
                     f_u = retrained_extractor.features[i].to(device)
@@ -283,9 +294,9 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
         layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
         return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
 
-    elif os.path.exists(os.path.join('features', f'{data}_retrained_features.pt')):
+    elif os.path.exists(os.path.join('features', f'{data}_{args.class_to_replace}_retrained_features.pt')):
         features_dir = os.path.join('features')
-        saved_features = torch.load(os.path.join(features_dir, f'{data}_retrained_features.pt'), map_location="cpu")
+        saved_features = torch.load(os.path.join(features_dir, f'{data}_{args.class_to_replace}_retrained_features.pt'), map_location="cpu")
         
         unlearned_model.eval()
 
@@ -634,10 +645,10 @@ def setup_model_dataset(args):
             if not args.class_to_replace.isdigit():
                 class_file = f"./class_to_replace/{args.class_to_replace}.txt"
                 with open(class_file, "r") as f:
-                    args.class_to_replace = [int(line.strip()) for line in f if line.strip()]
+                    class_to_replace = [int(line.strip()) for line in f if line.strip()]
         
         # when train the model
-        if args.class_to_replace is None and args.num_indexes_to_replace is None:
+        if class_to_replace is None and args.num_indexes_to_replace is None:
             train_subset_indices = None
             
         elif args.num_indexes_to_replace:
@@ -646,8 +657,8 @@ def setup_model_dataset(args):
             replace_indices = torch.randperm(total_samples)[:num_to_replace]
             train_subset_indices[replace_indices] = 0
             
-        elif args.class_to_replace:
-            for class_id in args.class_to_replace:
+        elif class_to_replace:
+            for class_id in class_to_replace:
                 class_id = int(class_id)
                 train_class_indices = (train_ys == class_id).nonzero().squeeze()
                 train_subset_indices[train_class_indices] = 0
@@ -655,7 +666,7 @@ def setup_model_dataset(args):
         # divide validation set into retain and forget
         val_subset_indices = torch.ones_like(val_ys)
         
-        if args.class_to_replace is None and args.num_indexes_to_replace is None:
+        if class_to_replace is None and args.num_indexes_to_replace is None:
             val_subset_indices = None
             
         elif args.num_indexes_to_replace:
@@ -664,8 +675,8 @@ def setup_model_dataset(args):
             replace_indices = torch.randperm(total_samples)[:num_to_replace]
             val_subset_indices[replace_indices] = 0
             
-        elif args.class_to_replace:
-            for class_id in args.class_to_replace:
+        elif class_to_replace:
+            for class_id in class_to_replace:
                 class_id = int(class_id)
                 val_class_indices = (val_ys == class_id).nonzero().squeeze()
                 val_subset_indices[val_class_indices] = 0
