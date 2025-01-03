@@ -67,10 +67,10 @@ def evaluate_model(model_path, retrained_model, device, args):
     # evaluate CKA
     print("Evaluating CKA...")
     model = utils.initialize_model(model_path, device)
-    forget_cka = utils.evaluate_cka(model, retrained_model, forget_loader, device)
-    retain_cka = utils.evaluate_cka(model, retrained_model, retain_loader, device)
-    val_forget_cka = utils.evaluate_cka(model, retrained_model, val_forget_loader, device)
-    val_retain_cka = utils.evaluate_cka(model, retrained_model, val_retain_loader, device)
+    forget_cka = utils.evaluate_cka(model, retrained_model, forget_loader, device, data='Df')
+    retain_cka = utils.evaluate_cka(model, retrained_model, retain_loader, device, data='Dr')
+    val_forget_cka = utils.evaluate_cka(model, retrained_model, val_forget_loader, device, data='Dtf')
+    val_retain_cka = utils.evaluate_cka(model, retrained_model, val_retain_loader, device, data='Dtr')
     
     # Office-Home
     office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
@@ -136,8 +136,8 @@ def main():
         # "./pretrained_model/retraincheckpoint100.pth.tar",
         # "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
         # "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
-        "./result/SalUn/RL_imagenet/5e-06/9/RL_imagenetcheckpoint.pth.tar",
-        "./result/FT/FT/1e-04/39/FTcheckpoint.pth.tar",
+        # "./result/SalUn/RL_imagenet/5e-06/9/RL_imagenetcheckpoint.pth.tar",
+        # "./result/FT/FT/0.0001/39/FTcheckpoint.pth.tar",
         # "./result/CU/CU/0.001/79/CUcheckpoint.pth.tar",
         # "./result/SCAR/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
         # "./result/SCRUB/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
@@ -145,43 +145,33 @@ def main():
         # "./result/RKD/RKD/7e-06/14/RKDcheckpoint.pth.tar",
         # "./result/AKD/AKD/7e-06/14/AKDcheckpoint.pth.tar",
         # "./result/SPKD/SPKD/7e-06/14/SPKDcheckpoint.pth.tar",
-        "./result/SPKD_retrained/SPKD_retrained/1e-05/14/SPKD_retrainedcheckpoint.pth.tar",
+        # "./result/SPKD_retrained/SPKD_retrained/7e-06/14/SPKD_retrainedcheckpoint.pth.tar",
     ]
 
     retrained_model = utils.load_model(args.retrained_model_path, device)
     
     results = {}
-    flag = True
-    for model_path in model_paths:
-        eval_results = evaluate_model(model_path, retrained_model, device, args)
-        results.update(eval_results)
-        
-        # print results
-        print("Evaluation results:")
-        print("-" * 50)
-        for metric, value in results.items():
-            print(f"{metric}: {value:.2f}")
+    
+    eval_results = evaluate_model(args.model_path, retrained_model, device, args)
+    results.update(eval_results)
+    
+    # print results
+    print("Evaluation results:")
+    print("-" * 50)
+    for metric, value in results.items():
+        print(f"{metric}: {value:.2f}")
 
-        try:
-            method_name = model_path.split('/')[-4]
-        except:
-            method_name = "Original" if flag else "Retrained"
-            flag = False
-            
-        if args.use_wandb:
-            wandb_results = {}
-            for metric_name, value in results.items():
-                wandb_results[f"methods/{method_name}/{metric_name}"] = value
-                wandb_results[f"metrics/{metric_name}/{method_name}"] = value
-            
-            wandb.log(wandb_results)
+    try:
+        method_name = args.model_path.split('/')[-4]
+    except:
+        method_name = "original" if "original" in args.model_path else "retrained"
         
-        # save results
-        save_dir = f"result/evaluation/{method_name}"
-        os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, "evaluation_results.pt")
-        torch.save(results, save_path)
-        print(f"Results saved to {save_path}")
+    if args.use_wandb:
+        wandb_results = {}
+        for metric_name, value in results.items():
+            wandb_results[f"{metric_name}"] = value
+        
+        wandb.log(wandb_results)
 
 
 if __name__ == "__main__":
