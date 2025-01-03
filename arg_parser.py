@@ -132,8 +132,8 @@ def parse_args():
     parser.add_argument(
         "--class_to_replace", 
         default="random100",
-        choices=["random100", "random200", "top100_officehome_real", "top100_cub", "top100_domainnet", "top200_officehome_real", "top200_cub", "top200_domainnet"],
-        help="Specific class to forget"
+        choices=["random100", "random200", "top100_officehome_real", "top100_cub", "top100_domainnet_real", "top200_officehome_real", "top200_cub", "top200_domainnet_real"],
+        help="Specific class to forget, refer to the class_to_replace folder"
     )
     parser.add_argument(
         "--indexes_to_replace",
