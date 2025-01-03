@@ -156,6 +156,8 @@ def evaluate_knn(model_path, args):
     
     knn_accuracy = {}
     for dataset_name, (train_loader, test_loader) in data_loaders.items():
+        if dataset_name == "imagenet_retain":
+            continue
         if "imagenet" in dataset_name:
             model = initialize_model(model_path, device)
         else:
@@ -199,7 +201,7 @@ class FeatureExtractor:
         self.features = []
 
 
-def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='avgpool', Dr_features=None, Df_features=None, data=None):
+def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mode='avgpool', Dr_features=None, Df_features=None, data=None):
     """
     compute CKA similarity between two models with feature reuse
     """
@@ -341,6 +343,9 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
         layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
         return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
     else:
+        features_dir = os.path.join('features')
+        features_path = os.path.join(features_dir, f'{data}_{args.class_to_replace}_retrained_features.pt') if data else None
+        
         unlearned_model.eval()
         retrained_model.eval()
         
@@ -371,17 +376,20 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, mode='av
                 batch_features.append(f_r.cpu())
                 f_r = f_r.view(f_r.size(0), -1)
                 
+                retrained_features.append(batch_features)
+                
                 cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
                 
                 del f_u, f_r
                 torch.cuda.empty_cache()
             
-            retrained_features.append(batch_features)
-            
             for hook in hooks:
                 hook.remove()
             unlearned_extractor.clear()
             retrained_extractor.clear()
+            
+        if features_path:
+            torch.save(retrained_features, features_path)
 
         n = len(data_loader)
         layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}

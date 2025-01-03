@@ -51,6 +51,7 @@ def evaluate_model(model_path, retrained_model, device, args):
     knn_accuracy = utils.evaluate_knn(model_path, args)
     
     results.update({
+        'imagenet_forget_knn': knn_accuracy['imagenet_forget'],
         'imagenet_val_forget_knn': knn_accuracy['imagenet_val_forget'],
         'imagenet_val_retain_knn': knn_accuracy['imagenet_val_retain'],
         'office_home_real_world_knn': knn_accuracy['office_home_real_world'],
@@ -67,10 +68,10 @@ def evaluate_model(model_path, retrained_model, device, args):
     # evaluate CKA
     print("Evaluating CKA...")
     model = utils.initialize_model(model_path, device)
-    forget_cka = utils.evaluate_cka(model, retrained_model, forget_loader, device, data='Df')
-    retain_cka = utils.evaluate_cka(model, retrained_model, retain_loader, device, data='Dr')
-    val_forget_cka = utils.evaluate_cka(model, retrained_model, val_forget_loader, device, data='Dtf')
-    val_retain_cka = utils.evaluate_cka(model, retrained_model, val_retain_loader, device, data='Dtr')
+    forget_cka = utils.evaluate_cka(model, retrained_model, forget_loader, device, args=args, data='Df')
+    retain_cka = utils.evaluate_cka(model, retrained_model, retain_loader, device, args=args, data='Dr')
+    val_forget_cka = utils.evaluate_cka(model, retrained_model, val_forget_loader, device, args=args, data='Dtf')
+    val_retain_cka = utils.evaluate_cka(model, retrained_model, val_retain_loader, device, args=args, data='Dtr')
     
     # Office-Home
     office_home_real_world_data_loader = utils.office_home_dataloaders(data_dir=args.office_home_dataset_path, domain="Real_World", batch_size=512, num_workers=4)
@@ -90,17 +91,17 @@ def evaluate_model(model_path, retrained_model, device, args):
     model = utils.load_model(model_path, device).to(device)
     model.eval()
     
-    office_home_real_world_results = utils.evaluate_cka(model, retrained_model, office_home_real_world_data_loader, device)
-    office_home_art_results = utils.evaluate_cka(model, retrained_model, office_home_art_data_loader, device)
-    office_home_clipart_results = utils.evaluate_cka(model, retrained_model, office_home_clipart_data_loader, device)
-    office_home_product_results = utils.evaluate_cka(model, retrained_model, office_home_product_data_loader, device)
+    office_home_real_world_results = utils.evaluate_cka(model, retrained_model, office_home_real_world_data_loader, device, args=args)
+    office_home_art_results = utils.evaluate_cka(model, retrained_model, office_home_art_data_loader, device, args=args)
+    office_home_clipart_results = utils.evaluate_cka(model, retrained_model, office_home_clipart_data_loader, device, args=args)
+    office_home_product_results = utils.evaluate_cka(model, retrained_model, office_home_product_data_loader, device, args=args)
     
-    cub_results = utils.evaluate_cka(model, retrained_model, cub_data_loader, device)
+    cub_results = utils.evaluate_cka(model, retrained_model, cub_data_loader, device, args=args)
     
-    domainnet126_clipart_results = utils.evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device)
-    domainnet126_painting_results = utils.evaluate_cka(model, retrained_model, domainnet126_painting_data_loader, device)
-    domainnet126_real_results = utils.evaluate_cka(model, retrained_model, domainnet126_real_data_loader, device)
-    domainnet126_sketch_results = utils.evaluate_cka(model, retrained_model, domainnet126_sketch_data_loader, device)
+    domainnet126_clipart_results = utils.evaluate_cka(model, retrained_model, domainnet126_clipart_data_loader, device, args=args)
+    domainnet126_painting_results = utils.evaluate_cka(model, retrained_model, domainnet126_painting_data_loader, device, args=args)
+    domainnet126_real_results = utils.evaluate_cka(model, retrained_model, domainnet126_real_data_loader, device, args=args)
+    domainnet126_sketch_results = utils.evaluate_cka(model, retrained_model, domainnet126_sketch_data_loader, device, args=args)
     
     
     results.update({

@@ -176,7 +176,7 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                         
                         office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
-                        office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, office_home_data_loader, device, mode="avgpool")
+                        office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, office_home_data_loader, device, args, mode="avgpool")
                         
                         retain_data_loader = data_loaders["retain"]
                         forget_data_loader = data_loaders["forget"]
@@ -184,8 +184,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         val_retain_data_loader = data_loaders["val_retain"]
                         val_forget_data_loader = data_loaders["val_forget"]
                         
-                        val_retain_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_retain_data_loader, device, mode="avgpool")
-                        val_forget_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_forget_data_loader, device, mode="avgpool")
+                        val_retain_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_retain_data_loader, device, args, mode="avgpool")
+                        val_forget_cka = utils.evaluate_cka(unlearned_model, retrained_model, val_forget_data_loader, device, args, mode="avgpool")
                         
                         accuracy["office_home_cka"] = office_home_cka['cka']
                         accuracy["val_retain_cka"] = val_retain_cka['cka']
