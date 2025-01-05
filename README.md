@@ -66,7 +66,7 @@ python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original 
 
 A simple example to generate saliency map for ResNet-50 on ImageNet.
 ```bash
-python generate_mask.py --dataset imagenet --data_dir ${path of the imagenet dataset}  --arch resnet50 --imagenet_arch --save_dir ./mask --model_path ./pretrained_model/0model_SA_best159.pth.tar --unlearn_epochs 1
+python generate_mask.py --dataset imagenet --data_dir ${path of the imagenet dataset}  --arch resnet50 --imagenet_arch --save_dir ./mask --model_path ./pretrained_model/original.pth.tar --unlearn_epochs 1
 ```
 
 3. Unlearn the original model.
