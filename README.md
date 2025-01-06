@@ -51,7 +51,7 @@ All datasets used in our experiments are publicly available.
 
 1. Get the origin model.
 ```bash
-python main_train.py --dataset ${dataset} --data_dir ${path of the imagenet dataset} --arch ${model architechture} --imagenet_arch --save_dir ${save_dir} --epochs ${epochs for training} --lr ${learning rate for training} --save_dir ${file to save the orgin model}
+python main_train.py --dataset ${dataset} --data_dir ${path of the imagenet dataset} --arch ${model architechture} --imagenet_arch --save_dir ${file to save the orgin model} --epochs ${epochs for training} --lr ${learning rate for training}
 ```
 
 A simple example for ResNet-50 on ImageNet.
