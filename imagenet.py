@@ -75,10 +75,10 @@ def prepare_data(
         loaders["train"] = DataLoader(train_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
 
     if val_subset_indices is not None:
-        loaders["val_retain"] = DataLoader(retain_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
-        loaders["val_forget"] = DataLoader(forget_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+        loaders["val_train"] = DataLoader(retain_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+        loaders["val_fog"] = DataLoader(forget_validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
     else:
-        loaders["val"] = DataLoader(validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
+        loaders["val_train"] = DataLoader(validation_set, batch_size=batch_size, num_workers=8, shuffle=shuffle)
 
     return loaders
 

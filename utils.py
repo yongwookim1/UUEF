@@ -649,7 +649,10 @@ def setup_model_dataset(args):
             
         train_subset_indices = torch.ones_like(train_ys)
         
-        if type(args.class_to_replace) != list:
+        if args.class_to_replace is None:
+            class_to_replace = None
+        
+        elif type(args.class_to_replace) != list:
             if not args.class_to_replace.isdigit():
                 class_file = f"./class_to_replace/{args.class_to_replace}.txt"
                 with open(class_file, "r") as f:
@@ -698,13 +701,13 @@ def setup_model_dataset(args):
             data_path=args.data_dir
         )
         retain_loader = loaders["train"]
-        val_retain_loader = loaders["val_retain"]
-        val_forget_loader = loaders["val_forget"]
+        val_retain_loader = loaders["val_train"]
         if train_subset_indices is None:
             forget_loader = None
-            return model, retain_loader, val_retain_loader, val_forget_loader
+            return model, retain_loader, val_retain_loader
         else:
             forget_loader = loaders["fog"]
+            val_forget_loader = loaders["val_fog"]
             return model, retain_loader, forget_loader, val_retain_loader, val_forget_loader
         
 
