@@ -4,7 +4,7 @@ from .VGG import *
 from .VGG_LTH import *
 from .ConvNeXt import *
 from .ViT import *
-
+from .Swin import *
 model_dict = {
     "resnet18": resnet18,
     "resnet50": resnet50,
@@ -15,4 +15,5 @@ model_dict = {
     "vgg16_bn_lth": vgg16_bn_lth,
     "convnext_tiny": convnext_tiny,
     "vit_tiny": vit_tiny,
+    "swin_tiny": swin_tiny,
 }
