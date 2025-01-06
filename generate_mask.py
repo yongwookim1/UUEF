@@ -75,7 +75,7 @@ def save_gradient_ratio(data_loaders, model, criterion, args, mode="GA"):
         # concatenate all tensors into a single tensor
         all_elements = -torch.cat([tensor.flatten() for tensor in gradients.values()])
 
-        # calculate the threshold index for the top 10% elements
+        # calculate the threshold index for the top elements
         threshold_index = int(len(all_elements) * i)
 
         # calculate positions of all elements
