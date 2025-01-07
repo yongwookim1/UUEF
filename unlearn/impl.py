@@ -178,9 +178,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                         office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
                         office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, office_home_data_loader, device, args, mode="avgpool")
                         
-                        retain_data_loader = data_loaders["retain"]
-                        forget_data_loader = data_loaders["forget"]
-                        
+                        retrained_model = utils.initialize_model(args.retrained_model_path, device)
+                        unlearned_model = utils.initialize_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
                         val_retain_data_loader = data_loaders["val_retain"]
                         val_forget_data_loader = data_loaders["val_forget"]
                         
