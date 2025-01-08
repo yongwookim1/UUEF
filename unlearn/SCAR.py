@@ -172,6 +172,11 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                         cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
                         cov_shrinked = normalize_cov(cov_shrinked)
                         cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked).cpu())
+                elif type(args.class_to_replace) != list:
+                    if not args.class_to_replace.isdigit():
+                        class_file = f"./class_to_replace/{args.class_to_replace}.txt"
+                        with open(class_file, "r") as f:
+                            class_to_replace = [int(line.strip()) for line in f if line.strip()]
 
             SCAR.distribs = torch.stack(distribs)
             SCAR.cov_matrix_inv = torch.stack(cov_matrix_inv)
@@ -241,13 +246,19 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
             outputs_ret = model(img_ret)
             
+            if type(args.class_to_replace) != list:
+                if not args.class_to_replace.isdigit():
+                    class_file = f"./class_to_replace/{args.class_to_replace}.txt"
+                    with open(class_file, "r") as f:
+                        class_to_replace = [int(line.strip()) for line in f if line.strip()]
+            
             with torch.no_grad():
                 outputs_original = original_model(img_ret)
                 label_out = torch.argmax(outputs_original, dim=1)
-                outputs_original = outputs_original[label_out != args.class_to_replace[0], :]
-                outputs_original[:,torch.tensor(args.class_to_replace, dtype=torch.int64)] = torch.min(outputs_original)
+                outputs_original = outputs_original[label_out != class_to_replace[0], :]
+                outputs_original[:,torch.tensor(class_to_replace, dtype=torch.int64)] = torch.min(outputs_original)
                 
-            outputs_ret = outputs_ret[label_out != args.class_to_replace[0], :]
+            outputs_ret = outputs_ret[label_out != class_to_replace[0], :]
             
             temperature = 2
             
