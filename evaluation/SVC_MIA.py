@@ -107,44 +107,44 @@ def SVC_MIA(shadow_train, target_train, target_test, shadow_test, model):
     target_train_conf = torch.gather(target_train_prob, 1, target_train_labels[:, None])
     target_test_conf = torch.gather(target_test_prob, 1, target_test_labels[:, None])
 
-    shadow_train_entr = entropy(shadow_train_prob)
-    shadow_test_entr = entropy(shadow_test_prob)
+    # shadow_train_entr = entropy(shadow_train_prob)
+    # shadow_test_entr = entropy(shadow_test_prob)
 
-    target_train_entr = entropy(target_train_prob)
-    target_test_entr = entropy(target_test_prob)
+    # target_train_entr = entropy(target_train_prob)
+    # target_test_entr = entropy(target_test_prob)
 
-    shadow_train_m_entr = m_entropy(shadow_train_prob, shadow_train_labels)
-    shadow_test_m_entr = m_entropy(shadow_test_prob, shadow_test_labels)
-    if target_train is not None:
-        target_train_m_entr = m_entropy(target_train_prob, target_train_labels)
-    else:
-        target_train_m_entr = target_train_entr
-    if target_test is not None:
-        target_test_m_entr = m_entropy(target_test_prob, target_test_labels)
-    else:
-        target_test_m_entr = target_test_entr
+    # shadow_train_m_entr = m_entropy(shadow_train_prob, shadow_train_labels)
+    # shadow_test_m_entr = m_entropy(shadow_test_prob, shadow_test_labels)
+    # if target_train is not None:
+    #     target_train_m_entr = m_entropy(target_train_prob, target_train_labels)
+    # else:
+    #     target_train_m_entr = target_train_entr
+    # if target_test is not None:
+    #     target_test_m_entr = m_entropy(target_test_prob, target_test_labels)
+    # else:
+    #     target_test_m_entr = target_test_entr
 
     acc_corr = SVC_fit_predict(
         shadow_train_corr, shadow_test_corr, target_train_corr, target_test_corr
     )
-    acc_conf = SVC_fit_predict(
-        shadow_train_conf, shadow_test_conf, target_train_conf, target_test_conf
-    )
-    acc_entr = SVC_fit_predict(
-        shadow_train_entr, shadow_test_entr, target_train_entr, target_test_entr
-    )
-    acc_m_entr = SVC_fit_predict(
-        shadow_train_m_entr, shadow_test_m_entr, target_train_m_entr, target_test_m_entr
-    )
-    acc_prob = SVC_fit_predict(
-        shadow_train_prob, shadow_test_prob, target_train_prob, target_test_prob
-    )
+    # acc_conf = SVC_fit_predict(
+    #     shadow_train_conf, shadow_test_conf, target_train_conf, target_test_conf
+    # )
+    # acc_entr = SVC_fit_predict(
+    #     shadow_train_entr, shadow_test_entr, target_train_entr, target_test_entr
+    # )
+    # acc_m_entr = SVC_fit_predict(
+    #     shadow_train_m_entr, shadow_test_m_entr, target_train_m_entr, target_test_m_entr
+    # )
+    # acc_prob = SVC_fit_predict(
+    #     shadow_train_prob, shadow_test_prob, target_train_prob, target_test_prob
+    # )
     m = {
         "correctness": acc_corr,
-        "confidence": acc_conf,
-        "entropy": acc_entr,
-        "m_entropy": acc_m_entr,
-        "prob": acc_prob,
+        # "confidence": acc_conf,
+        # "entropy": acc_entr,
+        # "m_entropy": acc_m_entr,
+        # "prob": acc_prob,
     }
     
     return m

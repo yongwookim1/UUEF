@@ -206,6 +206,14 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
     compute CKA similarity between two models with feature reuse
     """
     # initialize CKA computation
+    
+    data_loader = DataLoader(
+        data_loader.dataset,
+        batch_size=data_loader.batch_size,
+        shuffle=False,  # shuffle=False
+        num_workers=data_loader.num_workers
+    )
+    
     cuda_cka = CudaCKA(device)
     layers = ['layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc'] if mode == 'all' else ['avgpool']
     cka_results = {layer: 0 for layer in layers}
@@ -264,8 +272,6 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
                     f_u = Dr_features[batch_idx][i].to(device)
                 elif Df_features is not None:
                     f_u = Df_features[batch_idx][i].to(device)
-                else:
-                    f_u = retrained_extractor.features[i].to(device)
                 f_u = f_u.view(f_u.size(0), -1)
 
                 # get retrained features
@@ -302,7 +308,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
         
         unlearned_model.eval()
 
-        print(f"Extracting saved features for {data} dataset...")
+        print(f"Extracting saved features...")
         unlearned_extractor = FeatureExtractor()
         
         # compute CKA
@@ -343,6 +349,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
         layer_results = {layer: {'cka': float(f"{(value / n).cpu().numpy() * 100:.2f}")} for layer, value in cka_results.items()}
         return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
     else:
+        os.makedirs('features', exist_ok=True)
         features_dir = os.path.join('features')
         features_path = os.path.join(features_dir, f'{data}_{args.class_to_replace}_retrained_features.pt') if data else None
         
@@ -376,12 +383,12 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
                 batch_features.append(f_r.cpu())
                 f_r = f_r.view(f_r.size(0), -1)
                 
-                retrained_features.append(batch_features)
-                
                 cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
                 
                 del f_u, f_r
                 torch.cuda.empty_cache()
+            
+            retrained_features.append(batch_features)
             
             for hook in hooks:
                 hook.remove()
@@ -509,6 +516,14 @@ def dataset_convert_to_train(dataset):
 def dataset_convert_to_test(dataset, args=None):
     if args.dataset == "TinyImagenet":
         test_transform = transforms.Compose([])
+    elif args.dataset == "imagenet":
+        test_transform = transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+            ]
+        )
     else:
         test_transform = transforms.Compose(
             [

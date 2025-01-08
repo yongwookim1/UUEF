@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 import torchvision.models as models
 import wandb
 
@@ -13,6 +14,7 @@ import arg_parser
 from dataset import office_home_dataloaders,cub_dataloaders, domainnet126_dataloaders
 from trainer import validate
 from models import *
+import evaluation
 
 
 def evaluate_model(model_path, retrained_model_path, device, args):
@@ -120,7 +122,43 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         "domainnet126_clipart_cka": domainnet126_clipart_results['cka'],
         "domainnet126_painting_cka": domainnet126_painting_results['cka'],
         "domainnet126_real_cka": domainnet126_real_results['cka'],
-        "domainnet126_sketch_cka": domainnet126_sketch_results['cka']
+        "domainnet126_sketch_cka": domainnet126_sketch_results['cka'],
+        })
+    
+    # MIA
+    model = utils.initialize_model(model_path, device)
+    
+    forget_dataset = forget_loader.dataset
+    retain_dataset = retain_loader.dataset
+    forget_len = len(forget_dataset)
+    retain_len = len(retain_dataset)
+
+    utils.dataset_convert_to_test(retain_dataset, args)
+    utils.dataset_convert_to_test(forget_loader, args)
+
+    shadow_train = torch.utils.data.Subset(retain_dataset, list(range(1000)))
+    shadow_train_loader = torch.utils.data.DataLoader(
+        shadow_train, batch_size=args.batch_size, shuffle=False
+    )
+    
+    val_forget_dataset = val_forget_loader.dataset
+    val_retain_dataset = val_retain_loader.dataset
+    test_dataset = torch.utils.data.ConcatDataset([val_forget_dataset, val_retain_dataset])
+    
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=args.batch_size, shuffle=False
+    )
+    
+    evaluation_result = evaluation.SVC_MIA(
+        shadow_train=shadow_train_loader,
+        shadow_test=test_loader,
+        target_train=None,
+        target_test=forget_loader,
+        model=model,
+    )
+    
+    results.update({
+        "SVC_MIA_forget_efficacy": evaluation_result['correctness'],
     })
 
     return results
