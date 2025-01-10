@@ -17,6 +17,19 @@ from models import *
 import evaluation
 
 
+def replace_loader_dataset(
+        dataset, batch_size=512, seed=2, shuffle=False
+    ):
+        utils.setup_seed(seed)
+        return torch.utils.data.DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=shuffle,
+        )
+
+
 def evaluate_model(model_path, retrained_model_path, device, args):
     """evaluate model using kNN and CKA metrics on multiple datasets"""
     results = {}
@@ -37,16 +50,20 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         "val_forget": val_forget_loader
     })
     
+    forget_loader = replace_loader_dataset(forget_loader.dataset, batch_size=512, seed=1, shuffle=False)
+    retain_loader = replace_loader_dataset(retain_loader.dataset, batch_size=512, seed=1, shuffle=False)
+    val_forget_loader = replace_loader_dataset(val_forget_loader.dataset, batch_size=512, seed=1, shuffle=False)
+    val_retain_loader = replace_loader_dataset(val_retain_loader.dataset, batch_size=512, seed=1, shuffle=False)
+    
     # evaluate Accuracy
     print("Evaluating Accuracy...")
     model = utils.initialize_model(model_path, device)
     criterion = nn.CrossEntropyLoss()
     for name, data_loader in unlearn_data_loader.items():
-        if name in ["val_retain", "val_forget"]:
-            print(f"Validating {name} loader")
-            val_acc = validate(data_loader, model, criterion, args)
-            results[f"imagenet_{name}_acc"] = val_acc
-            print(f"imagenet_{name}_acc: {val_acc}")
+        print(f"Validating {name} loader")
+        val_acc = validate(data_loader, model, criterion, args)
+        results[f"imagenet_{name}_acc"] = val_acc
+        print(f"imagenet_{name}_acc: {val_acc}")
     
     # evaluate kNN
     print("Evaluating kNN...")
@@ -108,7 +125,6 @@ def evaluate_model(model_path, retrained_model_path, device, args):
     domainnet126_real_results = utils.evaluate_cka(model, retrained_model, domainnet126_real_data_loader, device, args=args)
     domainnet126_sketch_results = utils.evaluate_cka(model, retrained_model, domainnet126_sketch_data_loader, device, args=args)
     
-    
     results.update({
         "imagenet_forget_cka": forget_cka['cka'],
         "imagenet_retain_cka": retain_cka['cka'],
@@ -126,40 +142,41 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         })
     
     # MIA
-    model = utils.initialize_model(model_path, device)
+    # model = utils.initialize_model(model_path, device)
     
-    forget_dataset = forget_loader.dataset
-    retain_dataset = retain_loader.dataset
-    forget_len = len(forget_dataset)
-    retain_len = len(retain_dataset)
+    # forget_dataset = forget_loader.dataset
+    # retain_dataset = retain_loader.dataset
+    # forget_len = len(forget_dataset)
+    # retain_len = len(retain_dataset)
 
-    utils.dataset_convert_to_test(retain_dataset, args)
-    utils.dataset_convert_to_test(forget_loader, args)
+    # utils.dataset_convert_to_test(retain_dataset, args)
+    # utils.dataset_convert_to_test(forget_loader, args)
 
-    shadow_train = torch.utils.data.Subset(retain_dataset, list(range(1000)))
-    shadow_train_loader = torch.utils.data.DataLoader(
-        shadow_train, batch_size=args.batch_size, shuffle=False
-    )
+    # shadow_train = torch.utils.data.Subset(retain_dataset, list(range(1000)))
+    # shadow_train_loader = torch.utils.data.DataLoader(
+    #     shadow_train, batch_size=args.batch_size, shuffle=False
+    # )
     
-    val_forget_dataset = val_forget_loader.dataset
-    val_retain_dataset = val_retain_loader.dataset
-    test_dataset = torch.utils.data.ConcatDataset([val_forget_dataset, val_retain_dataset])
+    # val_forget_dataset = val_forget_loader.dataset
+    # val_retain_dataset = val_retain_loader.dataset
+    # test_dataset = torch.utils.data.ConcatDataset([val_forget_dataset, val_retain_dataset])
     
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False
-    )
+    # test_loader = torch.utils.data.DataLoader(
+    #     test_dataset, batch_size=args.batch_size, shuffle=False
+    # )
     
-    evaluation_result = evaluation.SVC_MIA(
-        shadow_train=shadow_train_loader,
-        shadow_test=test_loader,
-        target_train=None,
-        target_test=forget_loader,
-        model=model,
-    )
+    # evaluation_result = evaluation.SVC_MIA(
+    #     shadow_train=shadow_train_loader,
+    #     shadow_test=test_loader,
+    #     target_train=None,
+    #     target_test=forget_loader,
+    #     model=model,
+    # )
     
-    results.update({
-        "SVC_MIA_forget_efficacy": evaluation_result['correctness'],
-    })
+    # results.update({
+    #     "SVC_MIA_forget_correctness": evaluation_result['correctness'],
+    #     "SVC_MIA_forget_prob": evaluation_result['prob'],
+    # })
 
     return results
 
@@ -174,7 +191,7 @@ def main():
         run = utils.init_wandb(args, project_name="unlearning_evaluation")
         
     model_paths = [
-        # "./pretrained_model/original.pth.tar",
+        "./pretrained_model/original.pth.tar",
         # "./pretrained_model/retrained_random100.pth.tar",
         # "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
         # "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
@@ -197,13 +214,7 @@ def main():
         # "./result/SCAR_top100_officehome/SCAR/0.0005/26/SCARcheckpoint.pth.tar",
         # "./result/SCRUB_top100_officehome/SCRUB/1e-05/90/SCRUBcheckpoint.pth.tar",
         # "./result/GA_KD_top100_officehome/GA_KD/1e-05/20/GA_KDcheckpoint.pth.tar",
-        # "./result/RKD_top100_officehome/RKD/7e-06/14/RKDcheckpoint.pth.tar",
-        # "./result/AKD_top100_officehome/AKD/7e-06/14/AKDcheckpoint.pth.tar",
-        # "./result/SPKD_top100_officehome/SPKD/7e-06/14/SPKDcheckpoint.pth.tar",
-        # "./result/SPKD_retrained_top100_officehome/SPKD_retrained/7e-06/14/SPKD_retrainedcheckpoint.pth.tar",
     ]
-    
-    results = {}
     
     eval_results = evaluate_model(args.model_path, args.retrained_model_path, device, args)
     results.update(eval_results)
