@@ -28,7 +28,7 @@ def GA_KD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     distill_loader = retain_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
-    
+
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
     # switch to train mode
@@ -74,6 +74,10 @@ def GA_KD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 start = time.time()
 
         print("Restore phase")
+        
+        losses = utils.AverageMeter()
+        top1 = utils.AverageMeter()
+        
         for i, data in enumerate(distill_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
@@ -83,7 +87,12 @@ def GA_KD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 output_o = original_model(image)
             
             # combine KD loss and CE loss
-            kd_loss = F.kl_div(F.log_softmax(output_u, dim=1), F.softmax(output_o, dim=1), reduction='batchmean')
+            temperature = 2
+            kd_loss = F.kl_div(
+                F.log_softmax(output_u/temperature, dim=1),
+                F.softmax(output_o/temperature, dim=1),
+                reduction='batchmean'
+            ) * (temperature * temperature)
             ce_loss = criterion(output_u, target)
             
             loss = 10 * kd_loss + 10 * ce_loss
