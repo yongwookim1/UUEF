@@ -44,10 +44,10 @@ def evaluate_model(model_path, retrained_model_path, device, args):
     ) = utils.setup_model_dataset(args)
     
     unlearn_data_loader = OrderedDict({
-        "retain": retain_loader,
         "forget": forget_loader,
+        "retain": retain_loader,
+        "val_forget": val_forget_loader,
         "val_retain": val_retain_loader,
-        "val_forget": val_forget_loader
     })
     
     forget_loader = replace_loader_dataset(forget_loader.dataset, batch_size=512, seed=1, shuffle=False)
@@ -141,7 +141,7 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         "domainnet126_sketch_cka": domainnet126_sketch_results['cka'],
         })
     
-    # MIA
+    # # MIA
     # model = utils.initialize_model(model_path, device)
     
     # forget_dataset = forget_loader.dataset
@@ -165,7 +165,7 @@ def evaluate_model(model_path, retrained_model_path, device, args):
     #     test_dataset, batch_size=args.batch_size, shuffle=False
     # )
     
-    # evaluation_result = evaluation.SVC_MIA(
+    # MIA_result = evaluation.MIA(
     #     shadow_train=shadow_train_loader,
     #     shadow_test=test_loader,
     #     target_train=None,
@@ -174,9 +174,10 @@ def evaluate_model(model_path, retrained_model_path, device, args):
     # )
     
     # results.update({
-    #     "SVC_MIA_forget_correctness": evaluation_result['correctness'],
-    #     "SVC_MIA_forget_prob": evaluation_result['prob'],
+    #     "MIA_forget_correctness": MIA_result['correctness'],
+    #     "MIA_forget_prob": MIA_result['prob'],
     # })
+    
 
     return results
 
@@ -185,13 +186,13 @@ def main():
     args = arg_parser.parse_args()
     utils.setup_seed(2)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    
+        
     # initialize wandb
     if args.use_wandb:
         run = utils.init_wandb(args, project_name="unlearning_evaluation")
         
     model_paths = [
-        "./pretrained_model/original.pth.tar",
+        # "./pretrained_model/original.pth.tar",
         # "./pretrained_model/retrained_random100.pth.tar",
         # "./result/GA/GA/5e-06/7/GAcheckpoint.pth.tar",
         # "./result/RL/RL_imagenet/5e-06/6/RL_imagenetcheckpoint.pth.tar",
@@ -216,6 +217,9 @@ def main():
         # "./result/GA_KD_top100_officehome/GA_KD/1e-05/20/GA_KDcheckpoint.pth.tar",
     ]
     
+    
+    results = {}
+
     eval_results = evaluate_model(args.model_path, args.retrained_model_path, device, args)
     results.update(eval_results)
     

@@ -156,35 +156,31 @@ def evaluate_knn(model_path, args):
     
     knn_accuracy = {}
     for dataset_name, (train_loader, test_loader) in data_loaders.items():
-        if dataset_name == "imagenet_retain":
-            continue
         if "imagenet" in dataset_name:
             model = initialize_model(model_path, device)
         else:
             model = load_model(model_path, device)
+        
+        if dataset_name == "imagenet_retain":
+            torch.manual_seed(2) # fix random seed for reproducibility
+            dataset_size = len(train_loader.dataset)
+            subset_size = int(0.1 * dataset_size)
+            indices = torch.randperm(dataset_size)[:subset_size]
+            train_subset = torch.utils.data.Subset(train_loader.dataset, indices)
+            train_loader = torch.utils.data.DataLoader(
+                train_subset,
+                batch_size=train_loader.batch_size,
+                shuffle=False,
+                num_workers=train_loader.num_workers
+            )
         
         train_features, train_labels = extract_features(model, train_loader, device)
         test_features, test_labels = extract_features(model, test_loader, device)
         
         knn = KNeighborsClassifier(n_neighbors=5, metric='cosine')
         knn.fit(train_features, train_labels)
-        
-        # process test data in batches
-        batch_size = 1024
-        total_score = 0
-        num_batches = 0
-        
-        for start_idx in tqdm(range(0, len(test_features), batch_size)):
-            end_idx = min(start_idx + batch_size, len(test_features))
-            batch_features = test_features[start_idx:end_idx]
-            batch_labels = test_labels[start_idx:end_idx]
-            
-            score = knn.score(batch_features, batch_labels)
-            total_score += score
-            num_batches += 1
-        
-        avg_score = total_score / num_batches if num_batches > 0 else 0
-        score = float(f"{avg_score * 100:.2f}")
+        score = knn.score(test_features, test_labels)
+        score = float(f"{score * 100:.2f}")
         knn_accuracy[dataset_name] = score
         
     return knn_accuracy
