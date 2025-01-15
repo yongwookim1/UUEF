@@ -107,8 +107,8 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available else "cpu")
     
     # define paths for saving/loading
-    embeddings_path = "./stats/ret_embs_labs.pth"
-    distribs_path = "./stats/distribs_cov_matrix_inv.pth"
+    embeddings_path = f"./stats/ret_embs_labs_{args.class_to_replace}.pth"
+    distribs_path = f"./stats/distribs_cov_matrix_inv_{args.class_to_replace}.pth"
 
     # load embeddings and labels if they exist
     if os.path.exists(embeddings_path):
@@ -167,19 +167,26 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 if type(args.class_to_replace) is list:
                     if i not in args.class_to_replace:
                         samples = tuckey_transf(ret_embs[labs==i])
-                        distribs.append(samples.mean(0))
+                        distribs.append(samples.mean(0).to("cpu"))
                         cov = torch.cov(samples.T)
                         cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
                         cov_shrinked = normalize_cov(cov_shrinked)
                         cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked).cpu())
-                elif type(args.class_to_replace) != list:
-                    if not args.class_to_replace.isdigit():
-                        class_file = f"./class_to_replace/{args.class_to_replace}.txt"
-                        with open(class_file, "r") as f:
-                            class_to_replace = [int(line.strip()) for line in f if line.strip()]
+                elif type(args.class_to_replace) != list and not args.class_to_replace.isdigit():
+                    class_file = f"./class_to_replace/{args.class_to_replace}.txt"
+                    with open(class_file, "r") as f:
+                        class_to_replace = [int(line.strip()) for line in f if line.strip()]
+                    if i not in class_to_replace:
+                        samples = tuckey_transf(ret_embs[labs==i])
+                        distribs.append(samples.mean(0).to("cpu"))
+                        cov = torch.cov(samples.T)
+                        cov_shrinked = cov_mat_shrinkage(cov, 3, 3, device)
+                        cov_shrinked = normalize_cov(cov_shrinked)
+                        cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked).cpu())
+                        
 
-            SCAR.distribs = torch.stack(distribs)
-            SCAR.cov_matrix_inv = torch.stack(cov_matrix_inv)
+            SCAR.distribs = torch.stack(distribs.to("cpu"))
+            SCAR.cov_matrix_inv = torch.stack(cov_matrix_inv.to("cpu"))
             
             # save distributions and inverse covariance matrices
             torch.save({'distribs': SCAR.distribs, 'cov_matrix_inv': SCAR.cov_matrix_inv}, distribs_path)
@@ -190,8 +197,8 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # unlearn_lr = 5e-4, weight_decay = 0
 
     SCAR.init = True
-    flag_exit = False
-    all_closest_class = []
+    SCAR.flag_exit = False
+    SCAR.all_closest_class = []
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
@@ -201,11 +208,11 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     start = time.time()
 
     print("Unlearning started")
-    for n_batch, (img_fgt, lab_fgt) in enumerate(forget_loader):
-        for n_batch_ret, all_batch in enumerate(tqdm(retain_loader)):
+    for n_batch, (img_fgt, lab_fgt) in enumerate(tqdm(forget_loader)):
+        for n_batch_ret, all_batch in enumerate(retain_loader):
             img_ret, lab_ret = all_batch
             
-            img_ret, lab_ret,img_fgt, lab_fgt = img_ret.to(device), lab_ret.to(device),img_fgt.to(device), lab_fgt.to(device)
+            img_ret, lab_ret, img_fgt, lab_fgt = img_ret.to(device), lab_ret.to(device), img_fgt.to(device), lab_fgt.to(device)
             optimizer.zero_grad()
 
             features = []
@@ -235,10 +242,10 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 tmp = closest_class[:, 0]
                 lab_fgt = lab_fgt.to("cpu")
                 closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
-                all_closest_class.append(closest_class)
-                closest_class = all_closest_class[-1]
+                SCAR.all_closest_class.append(closest_class)
+                closest_class = SCAR.all_closest_class[-1]
             else:
-                closest_class = all_closest_class[n_batch]
+                closest_class = SCAR.all_closest_class[n_batch]
 
             dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
 
@@ -246,12 +253,12 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
             outputs_ret = model(img_ret)
             
-            if type(args.class_to_replace) != list:
-                if not args.class_to_replace.isdigit():
+            if type(args.class_to_replace) != list and not args.class_to_replace.isdigit():
                     class_file = f"./class_to_replace/{args.class_to_replace}.txt"
                     with open(class_file, "r") as f:
                         class_to_replace = [int(line.strip()) for line in f if line.strip()]
             
+            # change the forget class to the minimum logit
             with torch.no_grad():
                 outputs_original = original_model(img_ret)
                 label_out = torch.argmax(outputs_original, dim=1)
@@ -265,18 +272,18 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             loss_ret = distill(outputs_ret, outputs_original / temperature) * 5
             loss = loss_ret + loss_fgt
 
-            if n_batch_ret > 2000:  # have to fix
+            if n_batch_ret > 200:  # have to fix
                 del loss, loss_ret, loss_fgt, embs_fgt, dists
                 break
             
             loss.backward()
             optimizer.step()
 
-            if flag_exit:
+            if SCAR.flag_exit:
                 break
         if n_batch > 1:
             break
-        if flag_exit:
+        if SCAR.flag_exit:
             break
 
     SCAR.init = False
