@@ -36,6 +36,7 @@ from .RL_pro import RL_proximal
 from .RL_imagenet import RL_imagenet
 from .RL_SPKD import RL_SPKD
 from .PL_SPKD import PL_SPKD
+from .PL_SPKD_retrained import PL_SPKD_retrained
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
 
@@ -58,6 +59,8 @@ def get_unlearn_method(name):
         return RL_SPKD
     elif name == "PL_SPKD":
         return PL_SPKD
+    elif name == "PL_SPKD_retrained":
+        return PL_SPKD_retrained
     elif name == "GA":
         return GA
     elif name == "FT":
