@@ -185,6 +185,6 @@ def MIA(
         shadow_test_performance,
         target_train_performance,
         target_test_performance,
-        num_classes=10,
+        num_classes=1000,
     )
     return BBB._mem_inf_benchmarks()

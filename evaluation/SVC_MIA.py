@@ -127,9 +127,9 @@ def SVC_MIA(shadow_train, target_train, target_test, shadow_test, model):
     acc_corr = SVC_fit_predict(
         shadow_train_corr, shadow_test_corr, target_train_corr, target_test_corr
     )
-    # acc_conf = SVC_fit_predict(
-    #     shadow_train_conf, shadow_test_conf, target_train_conf, target_test_conf
-    # )
+    acc_conf = SVC_fit_predict(
+        shadow_train_conf, shadow_test_conf, target_train_conf, target_test_conf
+    )
     # acc_entr = SVC_fit_predict(
     #     shadow_train_entr, shadow_test_entr, target_train_entr, target_test_entr
     # )
@@ -141,7 +141,7 @@ def SVC_MIA(shadow_train, target_train, target_test, shadow_test, model):
     # )
     m = {
         "correctness": acc_corr,
-        # "confidence": acc_conf,
+        "confidence": acc_conf,
         # "entropy": acc_entr,
         # "m_entropy": acc_m_entr,
         # "prob": acc_prob,
