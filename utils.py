@@ -233,7 +233,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
 
                 # clear GPU memory
                 del f_u, f_r
-                torch.cuda.empty_cache()
+                # torch.cuda.empty_cache()
 
         # average results
         n = len(data_loader)
@@ -280,7 +280,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
 
                 # clear GPU memory
                 del f_u, f_r
-                torch.cuda.empty_cache()
+                # torch.cuda.empty_cache()
 
             retrained_features.append(batch_features)
 
@@ -333,7 +333,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
                 
                 # clear GPU memory
                 del f_u, f_r
-                torch.cuda.empty_cache()
+                # torch.cuda.empty_cache()
 
             # cleanup
             for hook in hooks:
@@ -382,7 +382,7 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
                 cka_results[layer] += cuda_cka.linear_CKA(f_u, f_r).cpu()
                 
                 del f_u, f_r
-                torch.cuda.empty_cache()
+                # torch.cuda.empty_cache()
             
             retrained_features.append(batch_features)
             
