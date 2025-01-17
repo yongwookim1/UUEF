@@ -229,7 +229,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
 
             dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
 
-            loss_fgt = torch.mean(dists) * 2
+            loss_fgt = torch.mean(dists) * 5
             
             # change the forget class to the minimum logit
             with torch.no_grad():
@@ -252,7 +252,7 @@ def SCAR(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             loss.backward()
             optimizer.step()
 
-        if n_batch > 1:
+        if n_batch > 2:
             break
 
     SCAR.init = False
