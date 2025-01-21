@@ -56,11 +56,19 @@ def main():
     criterion = nn.CrossEntropyLoss()
     decreasing_lr = list(map(int, args.decreasing_lr.split(",")))
 
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
+    if args.arch == "convnext_tiny" or args.arch == "swin_tiny":
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=1e-4,
+            weight_decay=0.05,
+            betas=(0.9, 0.999),
+        )
+    else:
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
     )
 
     if args.imagenet_arch:
@@ -82,6 +90,8 @@ def main():
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=decreasing_lr, gamma=0.1
         )  # 0.1 is fixed
+    if args.arch == "convnext_tiny" or args.arch == "swin_tiny":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     if args.resume:
         print("resume from checkpoint {}".format(args.checkpoint))
         checkpoint = torch.load(

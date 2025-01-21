@@ -24,6 +24,7 @@ from dataset import *
 from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
+from models.ConvNeXt import convnext_tiny
 
 
 __all__ = [
@@ -157,9 +158,9 @@ def evaluate_knn(model_path, args):
     knn_accuracy = {}
     for dataset_name, (train_loader, test_loader) in data_loaders.items():
         if "imagenet" in dataset_name:
-            model = initialize_model(model_path, device)
+            model = initialize_model(model_path, device, args.arch)
         else:
-            model = load_model(model_path, device)
+            model = load_model(model_path, device, args.arch)
         
         if dataset_name == "imagenet_retain":
             torch.manual_seed(2) # fix random seed for reproducibility
@@ -399,21 +400,24 @@ def evaluate_cka(unlearned_model, retrained_model, data_loader, device, args, mo
         return {'cka': float(f"{sum(result['cka'] for result in layer_results.values()) / len(layer_results):.2f}")}
             
 
-def load_model(pretrained_model_path, device):
+def load_model(pretrained_model_path, device, arch):
     print(f"\nLoading model: {pretrained_model_path}")
-    model = models.resnet50(weights=None)
+    if arch == "resnet50":
+        model = models.resnet50(weights=None)
+    elif arch == "convnext_tiny":
+        model = convnext_tiny(pretrained=False, normalize_layer=False)
     checkpoint = torch.load(pretrained_model_path, map_location=device)
     if "state_dict" in checkpoint.keys():
         checkpoint = checkpoint["state_dict"]
     state_dict = {k.replace("module.", ""): v for k, v in checkpoint.items()}
     state_dict = {k: v for k, v in state_dict.items() if not (k.startswith('normalize.'))}
-    model.load_state_dict(state_dict, strict=True)
+    model.load_state_dict(state_dict, strict=False)
     model = model.to(device)
     print(f"Model loading complete: {pretrained_model_path}")
     return model
 
 
-def initialize_model(model_path, device, imagenet=True):
+def initialize_model(model_path, device, imagenet=True, arch="resnet50"):
     """initialize and load a ResNet50 model from checkpoint
     
     Args:
@@ -424,7 +428,10 @@ def initialize_model(model_path, device, imagenet=True):
     Returns:
         model (nn.Module): Initialized and loaded model
     """
-    model = resnet50(imagenet=imagenet)
+    if arch == "resnet50":
+        model = resnet50(imagenet=imagenet)
+    elif arch == "convnext_tiny":
+        model = convnext_tiny(imagenet=imagenet, normalize_layer=True)
     
     # Add normalization layer
     normalization = NormalizeByChannelMeanStd(
@@ -438,7 +445,7 @@ def initialize_model(model_path, device, imagenet=True):
         checkpoint = checkpoint["state_dict"]
     checkpoint = {k.replace("module.", ""): v for k, v in checkpoint.items()}
     
-    model.load_state_dict(checkpoint, strict=True)
+    model.load_state_dict(checkpoint, strict=False)
     model = model.to(device)
     model.eval()
     
@@ -654,7 +661,10 @@ def setup_model_dataset(args):
         )
         train_ys = torch.load(args.train_y_file)
         val_ys = torch.load(args.val_y_file)
-        model = model_dict[args.arch](num_classes=classes, imagenet=True)
+        if args.arch == "convnext_tiny" and args.unlearn == "retrain":
+            model = convnext_tiny(pretrained=True, in_22k=True)
+        else:
+            model = model_dict[args.arch](num_classes=classes, imagenet=True)
         
         model.normalize = normalization
             

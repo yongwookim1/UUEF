@@ -93,7 +93,7 @@ class ConvNeXt(nn.Module):
         super().__init__()
 
         self.normalize = NormalizeByChannelMeanStd(
-            mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
         
         self.downsample_layers = nn.ModuleList() # stem and 3 intermediate downsampling conv layers
@@ -123,11 +123,11 @@ class ConvNeXt(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
         self.norm = nn.LayerNorm(dims[-1], eps=1e-6) # final norm layer
-        self.classifier = nn.Linear(dims[-1], num_classes)
+        self.head = nn.Linear(dims[-1], num_classes)
 
         self.apply(self._init_weights)
-        self.classifier.weight.data.mul_(head_init_scale)
-        self.classifier.bias.data.mul_(head_init_scale)
+        self.head.weight.data.mul_(head_init_scale)
+        self.head.bias.data.mul_(head_init_scale)
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Conv2d, nn.Linear)):
@@ -143,9 +143,10 @@ class ConvNeXt(nn.Module):
         return self.norm(x)
 
     def forward(self, x):
-        x = self.normalize(x)
+        if self.normalize:
+            x = self.normalize(x)
         x = self.forward_features(x)
-        x = self.classifier(x)
+        x = self.head(x)
         return x
 
 class LayerNorm(nn.Module):
@@ -190,12 +191,15 @@ __all__ = [
 ]
 
 
-def convnext_tiny(pretrained=False, in_22k=False, **kwargs):
+def convnext_tiny(pretrained=False, in_22k=True, normalize_layer=True, **kwargs):
     model = ConvNeXt(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
     if pretrained:
         url = model_urls['convnext_tiny_22k'] if in_22k else model_urls['convnext_tiny_1k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu", check_hash=True)
-        model.load_state_dict(checkpoint["model"])
+        checkpoint = {k: v for k, v in checkpoint["model"].items() if "head" not in k}
+        model.load_state_dict(checkpoint, strict=False)
+    if normalize_layer==False:
+        model.normalize = None
     return model
 
 def convnext_small(pretrained=False,in_22k=False, **kwargs):

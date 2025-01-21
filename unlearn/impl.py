@@ -75,7 +75,15 @@ def _iterative_unlearn_impl(unlearn_iter_func):
             momentum=args.momentum,
             weight_decay=args.weight_decay,
         )
-
+        
+        if args.arch == "convnext_tiny" or args.arch == "swin_tiny":
+            if args.unlearn == "retrain":
+                optimizer = torch.optim.AdamW(
+                    model.parameters(),
+                    lr=1e-4,
+                    weight_decay=0.05,
+                    betas=(0.9, 0.999)
+                )
         if args.imagenet_arch and args.unlearn == "retrain":
             lambda0 = (
                 lambda cur_iter: (cur_iter + 1) / args.warmup
@@ -99,6 +107,9 @@ def _iterative_unlearn_impl(unlearn_iter_func):
             scheduler = torch.optim.lr_scheduler.MultiStepLR(
                 optimizer, milestones=decreasing_lr, gamma=0.1
             )  # 0.1 is fixed
+        if args.arch == "convnext_tiny" or args.arch == "swin_tiny":
+            if args.unlearn == "retrain":
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.unlearn_epochs)
         if args.rewind_epoch != 0:
             # learning rate rewinding
             for _ in range(args.rewind_epoch):
@@ -159,27 +170,28 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                                 print(f"{name} acc: {val_acc}")
                     else:
                         for name, loader in data_loaders.items():
-                            print(f"Validating {name} loader")
-                            val_acc = validate(loader, model, criterion, args)
-                            accuracy[name] = val_acc
-                            print(f"{name} acc: {val_acc}")
+                            if name != "forget" and name != "retain":
+                                print(f"Validating {name} loader")
+                                val_acc = validate(loader, model, criterion, args)
+                                accuracy[name] = val_acc
+                                print(f"{name} acc: {val_acc}")
                     
                     if args.evaluate_knn:
                         print(f"Validating kNN on Office-Home")
-                        unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
+                        unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device, args.arch)
                         accuracy["office_home_knn"] = utils.office_home_real_world_knn(unlearned_model, args)
                         print(f"office_home_knn: {accuracy['office_home_knn']}")
                     
                     if args.evaluate_cka:
                         print(f"Validating CKA between retrained model and current model")
-                        retrained_model = utils.load_model(args.retrained_model_path, device)
-                        unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
+                        retrained_model = utils.load_model(args.retrained_model_path, device, args.arch)
+                        unlearned_model = utils.load_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device, args.arch)
                         
                         office_home_data_loader = utils.office_home_dataloaders(batch_size=512, data_dir=args.office_home_dataset_path, num_workers=4)
                         office_home_cka = utils.evaluate_cka(unlearned_model, retrained_model, office_home_data_loader, device, args, mode="avgpool")
                         
-                        retrained_model = utils.initialize_model(args.retrained_model_path, device)
-                        unlearned_model = utils.initialize_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device)
+                        retrained_model = utils.initialize_model(args.retrained_model_path, device, args.arch)
+                        unlearned_model = utils.initialize_model(f"{save_dir}/{args.unlearn}checkpoint.pth.tar", device, args.arch)
                         val_retain_data_loader = data_loaders["val_retain"]
                         val_forget_data_loader = data_loaders["val_forget"]
                         
@@ -196,8 +208,8 @@ def _iterative_unlearn_impl(unlearn_iter_func):
                     if args.use_wandb:
                         metrics = {
                             "epoch": epoch,
-                            f"{args.dataset}_retain_acc": accuracy["retain"],
-                            f"{args.dataset}_forget_acc": accuracy["forget"],
+                            # f"{args.dataset}_retain_acc": accuracy["retain"],
+                            # f"{args.dataset}_forget_acc": accuracy["forget"],
                             f"{args.dataset}_val_retain_acc": accuracy["val_retain"],
                             f"{args.dataset}_val_forget_acc": accuracy["val_forget"],
                         }

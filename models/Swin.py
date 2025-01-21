@@ -22,6 +22,7 @@ except:
     WindowProcessReverse = None
     print("[Warning] Fused window process have not been installed. Please refer to get_started.md for installation.")
 
+
 class NormalizeByChannelMeanStd(torch.nn.Module):
     def __init__(self, mean, std):
         super(NormalizeByChannelMeanStd, self).__init__()
