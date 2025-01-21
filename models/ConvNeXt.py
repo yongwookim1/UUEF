@@ -191,7 +191,7 @@ __all__ = [
 ]
 
 
-def convnext_tiny(pretrained=False, in_22k=True, normalize_layer=True, **kwargs):
+def convnext_tiny(pretrained=True, in_22k=True, normalize_layer=True, **kwargs):
     model = ConvNeXt(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
     if pretrained:
         url = model_urls['convnext_tiny_22k'] if in_22k else model_urls['convnext_tiny_1k']
