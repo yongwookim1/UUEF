@@ -663,7 +663,7 @@ def setup_model_dataset(args):
         if args.arch == "convnext_tiny" and args.unlearn == "retrain":
             model = convnext_tiny(pretrained=True, in_22k=True)
         if args.arch == "swin_tiny" and args.unlearn == "retrain":
-            model = SwinTransformer(pretrained=True, in_22k=True)
+            model = swin_tiny(num_classes=classes, imagenet=True, pretrained=True)
         else:
             model = model_dict[args.arch](num_classes=classes, imagenet=True)
         

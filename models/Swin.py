@@ -659,10 +659,11 @@ def swin_tiny(num_classes=1000, imagenet=True, pretrained=True):
         use_checkpoint=False,
         fused_window_process=False,
         imagenet=imagenet,
-        normalize_layer=normalize_layer
+        normalize_layer=True,
     )
     if pretrained:
         url = "https://github.com/SwinTransformer/storage/releases/download/v1.0.8/swin_tiny_patch4_window7_224_22k.pth"
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu", check_hash=True)
-        model.load_state_dict(checkpoint, strict=True)
+        checkpoint = {k: v for k, v in checkpoint["model"].items() if "head" not in k}
+        model.load_state_dict(checkpoint, strict=False)
     return model
