@@ -97,7 +97,7 @@ def save_gradient_ratio(data_loaders, model, criterion, args, mode="GA"):
             hard_dict[key] = threshold_tensor
             start_index += num_elements
 
-            torch.save(hard_dict, os.path.join(args.save_dir, f"with_{i}_{mode}.pt"))
+            torch.save(hard_dict, os.path.join(args.save_dir, f"with_{i}.pt"))
 
 
 def main():
@@ -211,7 +211,7 @@ def main():
             
         model.load_state_dict(checkpoint, strict=True)
 
-    save_gradient_ratio(unlearn_data_loaders, model, criterion, args, mode="RL")
+    save_gradient_ratio(unlearn_data_loaders, model, criterion, args, mode="GA")
 
 
 if __name__ == "__main__":
