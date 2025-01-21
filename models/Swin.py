@@ -533,7 +533,7 @@ class SwinTransformer(nn.Module):
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
-                 use_checkpoint=False, fused_window_process=False, imagenet=True, **kwargs):
+                 use_checkpoint=False, fused_window_process=False, imagenet=True, normalize_layer=True, **kwargs):
         super().__init__()
 
         self.num_classes = num_classes
@@ -562,7 +562,8 @@ class SwinTransformer(nn.Module):
         # stochastic depth
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
         
-        self.normalize = NormalizeByChannelMeanStd(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        if normalize_layer:
+            self.normalize = NormalizeByChannelMeanStd(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         
         # build layers
         self.layers = nn.ModuleList()
@@ -621,7 +622,8 @@ class SwinTransformer(nn.Module):
         return x
 
     def forward(self, x):
-        x = self.normalize(x)
+        if self.normalize:
+            x = self.normalize(x)
         x = self.forward_features(x)
         x = self.head(x)
         return x
@@ -635,7 +637,7 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.num_classes
         return flops
     
-def swin_tiny(num_classes=1000, imagenet=True):
+def swin_tiny(num_classes=1000, imagenet=True, pretrained=True):
     model = SwinTransformer(
         img_size=224,
         patch_size=4, 
@@ -656,6 +658,11 @@ def swin_tiny(num_classes=1000, imagenet=True):
         patch_norm=True,
         use_checkpoint=False,
         fused_window_process=False,
-        imagenet=imagenet
+        imagenet=imagenet,
+        normalize_layer=normalize_layer
     )
+    if pretrained:
+        url = "https://github.com/SwinTransformer/storage/releases/download/v1.0.8/swin_tiny_patch4_window7_224_22k.pth"
+        checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu", check_hash=True)
+        model.load_state_dict(checkpoint, strict=True)
     return model

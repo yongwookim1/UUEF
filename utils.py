@@ -25,7 +25,7 @@ from dataset import TinyImageNet
 from imagenet import prepare_data
 from models import *
 from models.ConvNeXt import convnext_tiny
-
+from models.Swin import SwinTransformer
 
 __all__ = [
     "setup_model_dataset",
@@ -662,6 +662,8 @@ def setup_model_dataset(args):
         val_ys = torch.load(args.val_y_file)
         if args.arch == "convnext_tiny" and args.unlearn == "retrain":
             model = convnext_tiny(pretrained=True, in_22k=True)
+        if args.arch == "swin_tiny" and args.unlearn == "retrain":
+            model = SwinTransformer(pretrained=True, in_22k=True)
         else:
             model = model_dict[args.arch](num_classes=classes, imagenet=True)
         
