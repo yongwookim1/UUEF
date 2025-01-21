@@ -158,7 +158,7 @@ def evaluate_knn(model_path, args):
     knn_accuracy = {}
     for dataset_name, (train_loader, test_loader) in data_loaders.items():
         if "imagenet" in dataset_name:
-            model = initialize_model(model_path, device, args.arch)
+            model = initialize_model(model_path, device, arch=args.arch)
         else:
             model = load_model(model_path, device, args.arch)
         
@@ -444,8 +444,7 @@ def initialize_model(model_path, device, imagenet=True, arch="resnet50"):
     if "state_dict" in checkpoint.keys():
         checkpoint = checkpoint["state_dict"]
     checkpoint = {k.replace("module.", ""): v for k, v in checkpoint.items()}
-    
-    model.load_state_dict(checkpoint, strict=False)
+    model.load_state_dict(checkpoint, strict=True)
     model = model.to(device)
     model.eval()
     

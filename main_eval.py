@@ -57,7 +57,7 @@ def evaluate_model(model_path, retrained_model_path, device, args):
     
     # evaluate Accuracy
     print("Evaluating Accuracy...")
-    model = utils.initialize_model(model_path, device)
+    model = utils.initialize_model(model_path, device, arch=args.arch)
     criterion = nn.CrossEntropyLoss()
     for name, data_loader in unlearn_data_loader.items():
         print(f"Validating {name} loader")
@@ -86,8 +86,8 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         
     # evaluate CKA
     print("Evaluating CKA...")
-    model = utils.initialize_model(model_path, device)
-    retrained_model = utils.initialize_model(retrained_model_path, device)
+    model = utils.initialize_model(model_path, device, arch=args.arch)
+    retrained_model = utils.initialize_model(retrained_model_path, device, arch=args.arch)
     forget_cka = utils.evaluate_cka(model, retrained_model, forget_loader, device, args=args, data='Df')
     retain_cka = utils.evaluate_cka(model, retrained_model, retain_loader, device, args=args, data='Dr')
     val_forget_cka = utils.evaluate_cka(model, retrained_model, val_forget_loader, device, args=args, data='Dtf')
@@ -142,7 +142,7 @@ def evaluate_model(model_path, retrained_model_path, device, args):
         })
     
     # # MIA
-    # model = utils.initialize_model(model_path, device)
+    # model = utils.initialize_model(model_path, device, arch=args.arch)
     
     # forget_dataset = forget_loader.dataset
     # retain_dataset = retain_loader.dataset
