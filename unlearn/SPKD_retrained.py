@@ -23,7 +23,7 @@ def SPKD_retrained(data_loaders, model, criterion, optimizer, epoch, args, mask=
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
     # load retrained model
-    retrained_model = utils.load_model(args.retrained_model_path, device)
+    retrained_model = utils.initialize_model(args.arch, args.num_classes, args.imagenet_arch, device) ###
     retrained_model.to(device)
     retrained_model.eval()
 
