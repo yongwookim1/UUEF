@@ -3,6 +3,7 @@ import time
 import copy
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import utils
 
@@ -12,20 +13,62 @@ sys.path.append(".")
 from imagenet import get_x_y_from_data_dict
 
 
+def pdist(e, squared=False, eps=1e-12):
+    e_square = e.pow(2).sum(dim=1)
+    prod = e @ e.t()
+    res = (e_square.unsqueeze(1) + e_square.unsqueeze(0) - 2 * prod).clamp(min=eps)
+
+    if not squared:
+        res = res.sqrt()
+
+    res = res.clone()
+    res[range(len(e)), range(len(e))] = 0
+    return res
+
+
+class RKdAngle(nn.Module):
+    def forward(self, student, teacher):
+        with torch.no_grad():
+            td = (teacher.unsqueeze(0) - teacher.unsqueeze(1))
+            norm_td = F.normalize(td, p=2, dim=2)
+            t_angle = torch.bmm(norm_td, norm_td.transpose(1, 2)).view(-1)
+
+        sd = (student.unsqueeze(0) - student.unsqueeze(1))
+        norm_sd = F.normalize(sd, p=2, dim=2)
+        s_angle = torch.bmm(norm_sd, norm_sd.transpose(1, 2)).view(-1)
+
+        loss = F.smooth_l1_loss(s_angle, t_angle, reduction='mean')
+        return loss
+
+
+class RkdDistance(nn.Module):
+    def forward(self, student, teacher):
+        with torch.no_grad():
+            t_d = pdist(teacher, squared=False)
+            mean_td = t_d[t_d>0].mean()
+            t_d = t_d / mean_td
+
+        d = pdist(student, squared=False)
+        mean_d = d[d>0].mean()
+        d = d / mean_d
+
+        loss = F.smooth_l1_loss(d, t_d, reduction='mean')
+        return loss
+
+
 @iterative_unlearn
-def PL_AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
+def PL_RKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
-    if not hasattr(PL_AKD, 'original_model'):
-        PL_AKD.original_model = copy.deepcopy(model)
-        PL_AKD.original_model.eval()
-        for param in PL_AKD.original_model.parameters():
+    if not hasattr(PL_RKD, 'original_model'):
+        PL_RKD.original_model = copy.deepcopy(model)
+        PL_RKD.original_model.eval()
+        for param in PL_RKD.original_model.parameters():
             param.requires_grad = False
     
-    original_model = PL_AKD.original_model
+    original_model = PL_RKD.original_model
     
     forget_loader = data_loaders["forget"]
     retain_loader = data_loaders["retain"]
-    distill_loader = retain_loader
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     
@@ -79,21 +122,23 @@ def PL_AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 )
                 start = time.time()
 
-        # Restore phase
+        # Restore phase with RKD
         print("Restore phase")
         losses = utils.AverageMeter()
         top1 = utils.AverageMeter()
         
+        dist_criterion = RkdDistance()
+        angle_criterion = RKdAngle()
+        
         for i, data in enumerate(retain_loader):
             image, target = get_x_y_from_data_dict(data, device)
 
-            # Extract feature maps
             features_s = []
             features_t = []
             
             def hook_fn(module, input, output):
                 features_s.append(output)
-                
+            
             def hook_fn_t(module, input, output):
                 features_t.append(output)
             
@@ -111,8 +156,11 @@ def PL_AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
             f_s_flat = f_s.view(f_s.size(0), -1)
             f_t_flat = f_t.view(f_t.size(0), -1)
             
-            # Compute MSE loss between feature maps
-            similarity_loss = F.mse_loss(f_s_flat, f_t_flat)
+            f_s_norm = F.normalize(f_s_flat, p=2, dim=1)
+            f_t_norm = F.normalize(f_t_flat, p=2, dim=1)
+            
+            distance_loss = dist_criterion(f_s_norm, f_t_norm)
+            angle_loss = angle_criterion(f_s_norm, f_t_norm)
             
             features_s.clear()
             features_t.clear()
@@ -123,7 +171,7 @@ def PL_AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                 hook.remove()
             
             ce_loss = criterion(output, target)
-            loss = 10 * ce_loss + 10 * similarity_loss
+            loss = 10 * distance_loss + 10 * angle_loss + 10 * ce_loss
             
             optimizer.zero_grad()
             loss.backward()
@@ -143,10 +191,10 @@ def PL_AKD(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
                     "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
                     "Accuracy {top1.val:.3f} ({top1.avg:.3f})\t"
                     "Time {3:.2f}".format(
-                        epoch, i, len(distill_loader), end - start, loss=losses, top1=top1
+                        epoch, i, len(retain_loader), end - start, loss=losses, top1=top1
                     )
                 )
                 start = time.time()
 
     print("train_accuracy {top1.avg:.3f}".format(top1=top1))
-    return top1.avg
+    return top1.avg 
