@@ -40,6 +40,7 @@ from .PL_RKD import PL_RKD
 from .PL_AKD import PL_AKD
 from .PL_KD import PL_KD
 from .PL_SPKD_retrained import PL_SPKD_retrained
+from .PL_SPKD_df import PL_SPKD_df
 from .boundary_ex import boundary_expanding
 from .boundary_sh import boundary_shrink
 
@@ -70,6 +71,8 @@ def get_unlearn_method(name):
         return PL_KD
     elif name == "PL_SPKD_retrained":
         return PL_SPKD_retrained
+    elif name == "PL_SPKD_df":
+        return PL_SPKD_df
     elif name == "GA":
         return GA
     elif name == "FT":
