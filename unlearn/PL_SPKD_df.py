@@ -3,10 +3,13 @@ import time
 import copy
 import torch
 import torch.nn.functional as F
+
 import utils
 from .impl import iterative_unlearn
 sys.path.append(".")
 from imagenet import get_x_y_from_data_dict
+
+
 @iterative_unlearn
 def PL_SPKD_df(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
     # store initial model state at the beginning of unlearning (epoch 0)
@@ -15,10 +18,10 @@ def PL_SPKD_df(data_loaders, model, criterion, optimizer, epoch, args, mask=None
         PL_SPKD_df.original_model.eval()
         for param in PL_SPKD_df.original_model.parameters():
             param.requires_grad = False
+
     original_model = PL_SPKD_df.original_model
     forget_loader = data_loaders["forget"]
-    retain_loader = data_loaders["retain"]
-    distill_loader = forget_loader
+
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
@@ -29,6 +32,7 @@ def PL_SPKD_df(data_loaders, model, criterion, optimizer, epoch, args, mask=None
             class_file = f"./class_to_replace/{args.class_to_replace}.txt"
             with open(class_file, "r") as f:
                 class_to_replace = [int(line.strip()) for line in f if line.strip()]
+
     start = time.time()
     if args.imagenet_arch:
         # unlearning phase
