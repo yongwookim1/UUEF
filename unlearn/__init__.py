@@ -29,6 +29,7 @@ from .GA_layerwise import GA_layerwise
 from .GA_sequential import GA_sequential
 from .GA_freeze import GA_freeze
 from .CU import CU 
+from .DUCK import DUCK
 from .PCU import PCU
 from .PCU_forget import PCU_forget
 from .PL_AKD import PL_AKD
@@ -154,6 +155,8 @@ def get_unlearn_method(name):
         return GA_freeze
     elif name == "CU":
         return CU
+    elif name == "DUCK":
+        return DUCK
     elif name == "PCU":
         return PCU
     elif name == "PCU_forget":
