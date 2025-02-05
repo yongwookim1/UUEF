@@ -137,8 +137,8 @@ def main():
     utils.setup_seed(2)
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     
-    model = utils.load_model(args.model_path, arch=args.arch, device=device).to(device)
-    retrained_model = utils.load_model(args.retrained_model_path, arch=args.arch, device=device).to(device)
+    model = utils.load_model(args.model_path, device, arch=args.arch).to(device)
+    retrained_model = utils.load_model(args.retrained_model_path, device, arch=args.arch).to(device)
     model.eval()
     retrained_model.eval()
     
