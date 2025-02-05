@@ -406,6 +406,8 @@ def load_model(pretrained_model_path, device, arch):
         model = models.resnet50(weights=None)
     elif arch == "convnext_tiny":
         model = convnext_tiny(pretrained=False, normalize_layer=False)
+    elif arch == "swin_tiny":
+        model = swin_tiny(num_classes=1000, imagenet=True, pretrained=False)
     checkpoint = torch.load(pretrained_model_path, map_location=device)
     if "state_dict" in checkpoint.keys():
         checkpoint = checkpoint["state_dict"]
@@ -431,7 +433,9 @@ def initialize_model(model_path, device, imagenet=True, arch="resnet50"):
     if arch == "resnet50":
         model = resnet50(imagenet=imagenet)
     elif arch == "convnext_tiny":
-        model = convnext_tiny(imagenet=imagenet, normalize_layer=True)
+        model = convnext_tiny(imagenet=imagenet, normalize_layer=False)
+    elif arch == "swin_tiny":
+        model = swin_tiny(num_classes=1000, imagenet=True, pretrained=False)
     
     # Add normalization layer
     normalization = NormalizeByChannelMeanStd(
