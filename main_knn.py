@@ -310,7 +310,7 @@ def main():
     dataloaders = create_all_data_loaders(args)
     
     results = {}
-    model = utils.load_model(args.model_path, device)
+    model = utils.load_model(args.model_path, arch=args.arch, device=device)
     
     for name, (train_loader, test_loader) in dataloaders.items():
         print(f"Processing {name} loader")
