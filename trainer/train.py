@@ -44,24 +44,36 @@ def train(train_loader, model, criterion, optimizer, epoch, args, mask=None, l1=
         )
         for i, data in enumerate(train_loader):
             image, target = get_x_y_from_data_dict(data, device)
-            if epoch < args.warmup:
-                utils.warmup_lr(
-                    epoch, i + 1, optimizer, one_epoch_step=len(train_loader), args=args
-                )
+            # if epoch < args.warmup:
+            #     utils.warmup_lr(
+            #         epoch, i + 1, optimizer, one_epoch_step=len(train_loader), args=args
+            #     )
             # compute output
             output_clean = model(image)
 
             loss = criterion(output_clean, target)
             if l1:
                 loss = loss + args.alpha * l1_regularization(model)
-            optimizer.zero_grad()
-            loss.backward()
-
-            if mask:
-                for name, param in model.named_parameters():
-                    if param.grad is not None:
-                        param.grad *= mask[name]
-            optimizer.step()
+            
+            # apply gradient accumulation for convnext_tiny and swin_tiny
+            if args.arch in ["convnext_tiny", "swin_tiny"]:
+                loss = loss / 4
+                loss.backward()
+                if (i + 1) % 4 == 0 or (i + 1) == len(train_loader):
+                    if mask:
+                        for name, param in model.named_parameters():
+                            if param.grad is not None:
+                                param.grad *= mask[name]
+                    optimizer.step()
+                    optimizer.zero_grad()
+            else:
+                optimizer.zero_grad()
+                loss.backward()
+                if mask:
+                    for name, param in model.named_parameters():
+                        if param.grad is not None:
+                            param.grad *= mask[name]
+                optimizer.step()
 
             output = output_clean.float()
             loss = loss.float()
