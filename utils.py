@@ -666,7 +666,7 @@ def setup_model_dataset(args):
         val_ys = torch.load(args.val_y_file)
         if args.arch == "convnext_tiny" and args.unlearn == "retrain":
             model = convnext_tiny(pretrained=False, in_22k=True)
-        if args.arch == "swin_tiny" and args.unlearn == "retrain":
+        elif args.arch == "swin_tiny" and args.unlearn == "retrain":
             model = swin_tiny(num_classes=classes, imagenet=True, pretrained=False)
         else:
             model = model_dict[args.arch](num_classes=classes, imagenet=True)
