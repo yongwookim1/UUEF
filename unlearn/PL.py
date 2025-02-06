@@ -19,31 +19,40 @@ def PL(data_loaders, model, criterion, optimizer, epoch, args, mask=None):
         for param in PL.original_model.parameters():
             param.requires_grad = False
     original_model = PL.original_model
+    
     forget_loader = data_loaders["forget"]
+    
     losses = utils.AverageMeter()
     top1 = utils.AverageMeter()
+    
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
-    # switch mode
-    model.train()
+    
+    # get class to replace
     if type(args.class_to_replace) != list:
         if not args.class_to_replace.isdigit():
             class_file = f"./class_to_replace/{args.class_to_replace}.txt"
             with open(class_file, "r") as f:
                 class_to_replace = [int(line.strip()) for line in f if line.strip()]
+    
     start = time.time()
+    model.train()
     if args.imagenet_arch:
         # unlearning phase
         print("Unlearning with PL")
         for i, data in enumerate(forget_loader):
             image, target = get_x_y_from_data_dict(data, device)
             # get original model predictions for weighting
-            with torch.no_grad():
-                output_o = original_model(image)
-            output_o_modified = output_o.clone()
-            output_o_modified[:, class_to_replace] = float('-inf')
-            remain_target = output_o_modified.argmax(dim=1)
+
             # forward pass and loss computation
             output = model(image)
+            
+            # pseudo-labeling
+            with torch.no_grad():
+                output_o = original_model(image)
+                output_o_modified = output_o.clone()
+                output_o_modified[:, class_to_replace] = float('-inf')
+                remain_target = output_o_modified.argmax(dim=1)
+            
             pl_loss = criterion(output, remain_target)
             loss = pl_loss
             optimizer.zero_grad()
