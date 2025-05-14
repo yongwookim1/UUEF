@@ -55,6 +55,8 @@ All datasets used in our experiments are publicly available.
 
 ## Simply get the sample models for example
 
+Trianing is not our contribution range, we give the weight files of each model.
+
 Put these sample models in pretrained_model file.
 
 Path of the original model: https://drive.google.com/file/d/1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp/view?usp=drive_link
@@ -76,12 +78,32 @@ gdown --id 14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB -O pretrained_model/unlearned_model
 
 Evalaute the unlearned model using *k*-NN and CKA on Office-Home, CUB, DomainNet126 dataset.
 ```bash
-python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --arch ${model architechture} --imagenet_arch --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --model_path ${path of the unlearned model for evaluation} --retrained_model_path ${path of the retrained model} --batch_size 512 --class_to_replace ${classes to forget}
+python main_eval.py \
+--dataset imagenet \
+--data_dir ${path of the imagenet dataset} \
+--arch ${model architechture} \
+--imagenet_arch --office_home_dataset_path ${path of the office-home dataset} \
+--cub_dataset_path ${path of the cub dataset} \
+--domainnet_dataset_path ${path of the domainnet dataset} \
+--model_path ${path of the unlearned model for evaluation} \
+--retrained_model_path ${path of the retrained model} \
+--batch_size 512 \
+--class_to_replace ${classes to forget}
 ```
 
 A simple example using given models is here.
 ```bash
-python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --arch resnet50 --imagenet_arch --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --model_path pretrained_model/unlearned_model_CU --retrained_model_path pretrained_model/retrained_model --batch_size 512 --class_to_replace random100
+python main_eval.py \
+--dataset imagenet \
+--data_dir ${path of the imagenet dataset} \
+--arch resnet50 --imagenet_arch \
+--office_home_dataset_path ${path of the office-home dataset} \
+--cub_dataset_path ${path of the cub dataset} \
+--domainnet_dataset_path ${path of the domainnet dataset} \
+--model_path pretrained_model/unlearned_model_CU \
+--retrained_model_path pretrained_model/retrained_model \
+--batch_size 512 \
+--class_to_replace random100
 ```
 
 ## Acknowledgements
