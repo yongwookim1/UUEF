@@ -55,7 +55,7 @@ All datasets used in our evlauation framework are publicly available.
 
 ## Simply get the sample models for example
 
-Trianing is not our contribution range, we give the weight files of each model.
+Training is outside the scope of this work; we provide the model weight files for evaluation.
 
 Put these sample models in pretrained_model file.
 
