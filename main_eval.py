@@ -202,7 +202,6 @@ def main():
     
     for model_path in model_paths:
         results = {}
-        args.model_path = model_path
 
         eval_results = evaluate_model(args.model_path, args.retrained_model_path, device, args)
         results.update(eval_results)
