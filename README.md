@@ -24,8 +24,8 @@ Machine unlearning is a process to remove specific data points from a trained mo
 
 - **Machine Unlearning**: Focuses on efficiently removing specific data or knowledge from trained AI models while minimizing performance degradation, ensuring adaptability for real-world applications and compliance with regulatory requirements.
 - **Privacy-Compliant**: Implements machine unlearning to comply with data regulations like GDPR by addressing privacy and copyright concerns.
-- **Scalable Unlearning**: Adapts unlearning methods to foundation models and large-scale datasets beyond smaller benchmarks like CIFAR-10 and MNIST.
-- **Transfer Learning Evaluation**: Measures the impact of unlearning on transfer learning using k-nearest neighbors across downstream tasks.
+- **Scalable Unlearning**: Adapts unlearning methods to large-scale datasets beyond smaller benchmarks like CIFAR-10 and MNIST.
+- **Transfer Learning Evaluation**: Measures the impact of unlearning on transfer learning perspective using k-nearest neighbors across downstream tasks.
 - **Comparative Analysis**: Compares unlearned models with retrained models for classification accuracy, k-nearest neighbors and CKA ensuring practical insights.
 
 ## Requirements
