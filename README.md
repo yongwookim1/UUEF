@@ -31,70 +31,49 @@ Machine unlearning is a process to remove specific data points from a trained mo
 ## Requirements
 
 ```bash
-cd unlearning
+cd UUEF
 conda env create -f env.yaml
-conda activate unlearning
+conda activate UUEF
 ```
 
 ## Datasets Preparation
 
 All datasets used in our experiments are publicly available.
 
-1. Download the [ImageNet-1k dataset](https://image-net.org/download.php). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
-2. Place the dataset in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify a custom path using the --data_dir argument:
+1. Download the [ImageNet-1K dataset](https://image-net.org/download.php). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
+2. Place the dataset in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify the custom path using the --data_dir argument:
 ```bash
 --data_dir ${path of the imagenet dataset}
 ```
-
-## Training and Unlearning
-
-1. Get the origin model.
+3. Download the [Office-Home dataset](https://www.hemanthdv.org/officeHomeDataset.html).
+4. Download the [CUB dataset](https://www.kaggle.com/datasets/wenewone/cub2002011). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
+5. Download the [DomainNet dataset](https://ai.bu.edu/M3SDA/#dataset).
+6. Place the datasets in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify the custom path using arguments:
 ```bash
-python main_train.py --dataset ${dataset} --data_dir ${path of the imagenet dataset} --arch ${model architechture} --imagenet_arch --save_dir ${file to save the orgin model} --epochs ${epochs for training} --lr ${learning rate for training}
+--office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset}
 ```
 
-A simple example for ResNet-50 on ImageNet.
-```bash
-python main_train.py --dataset imagenet --data_dir ${path of the imagenet dataset} --arch resnet50 --imagenet_arch --save_dir ./result --lr 0.1 --epochs 182
-```
+## Simply get the sample models for example
 
-2. Generate saliency map (If you want to use SalUn).
-```bash
-python generate_mask.py --save_dir ${saliency_map_path} --model_path ${original model path} --class_to_replace ${classes to forget} --unlearn_epochs 1
-```
+Put these sample models in pretrained_model file.
 
-A simple example to generate saliency map for ResNet-50 on ImageNet.
-```bash
-python generate_mask.py --dataset imagenet --data_dir ${path of the imagenet dataset}  --arch resnet50 --imagenet_arch --save_dir ./mask --model_path ./pretrained_model/original.pth.tar --unlearn_epochs 1
-```
+Path of the original model: https://drive.google.com/file/d/1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp/view?usp=drive_link
+(The original model is required for evaluation)
 
-3. Unlearn the original model.
+Path of the retrained model: https://drive.google.com/file/d/13XK0PIssMaLZGSXfAWuKZyf8ZsBgxIgB/view?usp=drive_link
 
-* Retrain
-```bash
-python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn retrain --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
-```
-
-* FT
-```bash
-python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn FT --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
-```
-
-* GA
-```bash
-python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn GA --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning}
-```
-
-* SalUn
-```bash
-python main_forget.py --dataset imagenet --data_dir ${path of the imagenet dataset} --num_classes 1000 --arch resnet50 --imagenet_arch --save_dir ${save_dir} --model_path ${original model path} --unlearn RL_imagenet --class_to_replace ${classes to forget} --unlearn_epochs ${epochs for unlearning} --unlearn_lr ${learning rate for unlearning} --mask_path ${saliency_map_path}
-```
+Path of the unlearned model: https://drive.google.com/file/d/14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB/view?usp=drive_link
 
 ## Evaluation
 
 Evalaute the unlearned model using *k*-NN and CKA on Office-Home, CUB, DomainNet126 dataset.
 ```bash
 python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --arch ${model architechture} --imagenet_arch --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --model_path ${path of the unlearned model for evaluation} --retrained_model_path ${path of the retrained model} --batch_size 512 --class_to_replace ${classes to forget}
+```
+
+Simple example.
+```bash
+python main_eval.py --dataset imagenet --data_dir ${path of the imagenet dataset} --arch resnet50 --imagenet_arch --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset} --model_path ${path of the unlearned model for evaluation} --retrained_model_path ${path of the retrained model} --batch_size 512 --class_to_replace random100
 ```
 
 ## Acknowledgements
