@@ -38,7 +38,7 @@ conda activate UUEF
 
 ## Datasets Preparation
 
-All datasets used in our experiments are publicly available.
+All datasets used in our evlauation framework are publicly available.
 
 1. Download the [ImageNet-1K dataset](https://image-net.org/download.php). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
 2. Place the dataset in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify the custom path using the --data_dir argument:
@@ -46,7 +46,7 @@ All datasets used in our experiments are publicly available.
 --data_dir ${path of the imagenet dataset}
 ```
 3. Download the [Office-Home dataset](https://www.hemanthdv.org/officeHomeDataset.html).
-4. Download the [CUB dataset](https://www.kaggle.com/datasets/wenewone/cub2002011). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
+4. Download the [CUB dataset](https://www.kaggle.com/datasets/wenewone/cub2002011).
 5. Download the [DomainNet dataset](https://ai.bu.edu/M3SDA/#dataset).
 6. Place the datasets in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify the custom path using arguments:
 ```bash
