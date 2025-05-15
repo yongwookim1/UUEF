@@ -82,7 +82,8 @@ python main_eval.py \
 --dataset imagenet \
 --data_dir ${path of the imagenet dataset} \
 --arch ${model architechture} \
---imagenet_arch --office_home_dataset_path ${path of the office-home dataset} \
+--imagenet_arch \
+--office_home_dataset_path ${path of the office-home dataset} \
 --cub_dataset_path ${path of the cub dataset} \
 --domainnet_dataset_path ${path of the domainnet dataset} \
 --model_path ${path of the unlearned model for evaluation} \
