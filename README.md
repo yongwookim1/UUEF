@@ -8,6 +8,7 @@ Official PyTorch implementation
 - [Features](#features)
 - [Requirements](#requirements)
 - [Datasets Preparation](#datasets-preparation)
+- [Pretrained Models](#pretrained-models)
 - [Evaluation](#evaluation)
 - [Acknowledgements](#acknowledgements)
 - [Citation](#citation)
@@ -53,7 +54,7 @@ All datasets used in our evlauation framework are publicly available.
 --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset}
 ```
 
-## Pretrained models
+## Pretrained Models
 
 Training is outside the scope of this work; we provide the model weight files for evaluation.
 
@@ -69,9 +70,9 @@ Path of the unlearned model: https://drive.google.com/file/d/14-a1n194fTyzqt-0n0
 ```bash
 pip install gdown
 mkdir -p pretrained_model
-gdown --id 1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp -O pretrained_model/original_model.pth
-gdown --id 13XK0PIssMaLZGSXfAWuKZyf8ZsBgxIgB -O pretrained_model/retrained_model.pth
-gdown --id 14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB -O pretrained_model/unlearned_model_CU.pth
+gdown --id 1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp -O pretrained_model/original_model.pth.tar
+gdown --id 13XK0PIssMaLZGSXfAWuKZyf8ZsBgxIgB -O pretrained_model/retrained_model.pth.tar
+gdown --id 14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB -O pretrained_model/unlearned_model_CU.pth.tar
 ```
 
 ## Evaluation
