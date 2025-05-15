@@ -53,7 +53,7 @@ All datasets used in our evlauation framework are publicly available.
 --office_home_dataset_path ${path of the office-home dataset} --cub_dataset_path ${path of the cub dataset} --domainnet_dataset_path ${path of the domainnet dataset}
 ```
 
-## Simply get the sample models for example
+## Pretrained models
 
 Training is outside the scope of this work; we provide the model weight files for evaluation.
 
