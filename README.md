@@ -96,7 +96,8 @@ A simple example using given models is here.
 python main_eval.py \
 --dataset imagenet \
 --data_dir ${path of the imagenet dataset} \
---arch resnet50 --imagenet_arch \
+--arch resnet50 \
+--imagenet_arch \
 --office_home_dataset_path ${path of the office-home dataset} \
 --cub_dataset_path ${path of the cub dataset} \
 --domainnet_dataset_path ${path of the domainnet dataset} \
