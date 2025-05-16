@@ -32,6 +32,7 @@ We present a comprehensive benchmark for evaluating machine unlearning under lar
 ## Requirements
 
 ```bash
+git clone https://github.com/yongwookim1/UUEF.git
 cd UUEF
 conda env create -f env.yaml
 conda activate UUEF
