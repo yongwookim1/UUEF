@@ -19,7 +19,7 @@ Official PyTorch implementation
 
 We present a comprehensive benchmark for evaluating machine unlearning under large-scale, realistic scenarios. While prior works have primarily relied on logit-based metrics (*e.g.*, classification accuracy) in small-scale settings, our framework focuses on representation-level evaluation to assess whether unlearning methods truly remove the influence of target data. We find that existing methods often either degrade representation quality or only modify the classifier layer, leaving core representations unchanged. To address this, we introduce a transfer learning-based evaluation setup where forget classes are semantically aligned with downstream tasks, posing a more rigorous challenge. Our benchmark exposes critical limitations of current approaches and provides a solid foundation for developing and evaluating truly effective unlearning algorithms.
 
-<p align="center"><img src="images/our_framework.png" width="80%"></p>
+<p align="center"><img src="images/our_framework.png" width="100%"></p>
 
 ## Features
 
