@@ -1,6 +1,6 @@
 # Are We Truly Forgetting? A Critical Re-examination of Machine Unlearning Evaluation Protocols
 
-Official PyTorch implementation
+[![arXiv](https://img.shields.io/badge/arXiv-2503.06991-b31b1b.svg)](https://arxiv.org/abs/2503.06991)
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ conda activate UUEF
 
 ## Datasets Preparation
 
-All datasets used in our evlauation framework are publicly available.
+All datasets used in our evaluation framework are publicly available.
 
 1. Download the [ImageNet-1K dataset](https://image-net.org/download.php). You need to register and request access to the dataset for downloading. Once approved, you can obtain the training and validation data.
 2. Place the dataset in the "/home/dataset/" directory to match the expected path. Alternatively, you can specify the custom path using the --data_dir argument:
@@ -59,31 +59,28 @@ All datasets used in our evlauation framework are publicly available.
 
 Training is outside the scope of this work; we provide the model weight files for evaluation.
 
-Put these sample models in pretrained_model file.
+Put these sample models in pretrained_model directory.
 
-Path of the original model: https://drive.google.com/file/d/1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp/view?usp=drive_link
+Path of the original model: https://drive.google.com/file/d/1VSLAeZnZ1O-EcybBH1Bo4B8m3pqrVyCg/view?usp=drive_link
 (The original model is required for evaluation)
 
-Path of the retrained model: https://drive.google.com/file/d/13XK0PIssMaLZGSXfAWuKZyf8ZsBgxIgB/view?usp=drive_lin
-
-Path of the unlearned model: https://drive.google.com/file/d/14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB/view?usp=drive_link
+Path of the retrained model: https://drive.google.com/file/d/1OQIe5IgLec6SCuwhN05HtSEGYlggJZVc/view?usp=sharing
 
 ```bash
 pip install gdown
 mkdir -p pretrained_model
-gdown --id 1mdeoY6pxAzC5ivPZz7M1d_pht9x7Cgcp -O pretrained_model/original_model.pth.tar
-gdown --id 13XK0PIssMaLZGSXfAWuKZyf8ZsBgxIgB -O pretrained_model/retrained_model.pth.tar
-gdown --id 14-a1n194fTyzqt-0n0gJEXQk_2dd9cQB -O pretrained_model/unlearned_model_CU.pth.tar
+gdown --id 1VSLAeZnZ1O-EcybBH1Bo4B8m3pqrVyCg -O pretrained_model/original_model.pth.tar
+gdown --id 1OQIe5IgLec6SCuwhN05HtSEGYlggJZVc -O pretrained_model/retrained_model.pth.tar
 ```
 
 ## Evaluation
 
-Evalaute the unlearned model using *k*-NN and CKA on Office-Home, CUB, DomainNet126 dataset.
+Evaluate the unlearned model using *k*-NN and CKA on Office-Home, CUB, DomainNet126 dataset.
 ```bash
 python main_eval.py \
 --dataset imagenet \
 --data_dir ${path of the imagenet dataset} \
---arch ${model architechture} \
+--arch ${model architecture} \
 --imagenet_arch \
 --office_home_dataset_path ${path of the office-home dataset} \
 --cub_dataset_path ${path of the cub dataset} \
